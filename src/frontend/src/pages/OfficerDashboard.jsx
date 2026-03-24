@@ -1,0 +1,310 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { serviceRequestApi, documentApi } from '../api/services';
+
+const STATUS_COLORS = {
+  Pending: '#f59e0b',
+  InProgress: '#3b82f6',
+  Processing: '#3b82f6',
+  Resolved: '#10b981',
+  Ready: '#10b981',
+  Collected: '#6b7280',
+  Rejected: '#ef4444',
+};
+const PAGE_SIZE = 8;
+
+export default function OfficerDashboard() {
+  const { user } = useAuth();
+  const [tab, setTab] = useState('requests');
+
+  return (
+    <div>
+      <h1>Officer Dashboard</h1>
+      <p className="subtitle">Welcome, {user.fullName}. Below are your assigned tasks.</p>
+      <div className="tabs">
+        <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
+          My Requests
+        </button>
+        <button className={tab === 'documents' ? 'tab active' : 'tab'} onClick={() => setTab('documents')}>
+          My Documents
+        </button>
+      </div>
+      {tab === 'requests' && <OfficerRequestsTab />}
+      {tab === 'documents' && <OfficerDocumentsTab />}
+    </div>
+  );
+}
+
+function OfficerRequestsTab() {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [notes, setNotes] = useState('');
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await serviceRequestApi.getMyAssignments();
+      // Only show actionable items — hide already resolved/rejected
+      setRequests(data.filter((r) => r.status !== 'Resolved' && r.status !== 'Rejected'));
+    } catch { /* empty */ } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (id, status) => {
+    if (status === 'Rejected' && !notes.trim()) {
+      setError('You must provide a reason when rejecting a request.');
+      return;
+    }
+    setError('');
+    try {
+      await serviceRequestApi.updateStatus(id, { status, adminNotes: notes || undefined });
+      setSelected(null);
+      setNotes('');
+      await load();
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
+    }
+  };
+
+  const filtered = requests.filter((r) => {
+    const q = search.toLowerCase();
+    return !q || r.title.toLowerCase().includes(q) || r.type.toLowerCase().includes(q);
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  if (selected) {
+    return (
+      <div className="card">
+        <h2>Request Details</h2>
+        {error && <div className="alert alert-error">{error}</div>}
+        <div className="detail-grid">
+          <div><strong>Type:</strong> {selected.type}</div>
+          <div><strong>Title:</strong> {selected.title}</div>
+          <div><strong>Status:</strong> <span className="badge" style={{ backgroundColor: STATUS_COLORS[selected.status] || '#6b7280' }}>{selected.status}</span></div>
+          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
+        </div>
+        <div className="detail-description">
+          <strong>Description:</strong>
+          <p>{selected.description}</p>
+        </div>
+        {selected.adminNotes && (
+          <div className="detail-description">
+            <strong>Previous Notes:</strong>
+            <p>{selected.adminNotes}</p>
+          </div>
+        )}
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label>Notes / Rejection Reason</label>
+          <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Required when rejecting..." />
+        </div>
+        <div className="btn-group">
+          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Resolved')}>Approve</button>
+          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rejected')}>Reject</button>
+          <button className="btn btn-outline" onClick={() => { setSelected(null); setNotes(''); setError(''); }}>Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="section-header">
+        <h2>Assigned Service Requests</h2>
+        <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+      </div>
+      {loading ? (
+        <p className="loading-text">Loading requests...</p>
+      ) : filtered.length === 0 ? (
+        <p className="empty">{search ? 'No matching requests.' : 'No pending requests assigned to you.'}</p>
+      ) : (
+        <>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.type}</td>
+                  <td className="desc-cell">{r.title}</td>
+                  <td>
+                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>Review</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
+              <span>Page {safePage} of {totalPages}</span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function OfficerDocumentsTab() {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState(null);
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+
+  useEffect(() => { load(); }, []);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const { data } = await documentApi.getMyAssignments();
+      // Only show actionable items — hide already completed/rejected
+      setDocuments(data.filter((d) => d.status !== 'Ready' && d.status !== 'Rejected' && d.status !== 'Collected'));
+    } catch { /* empty */ } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async (id, status) => {
+    if (status === 'Rejected' && !reason.trim()) {
+      setError('You must provide a reason when rejecting a document.');
+      return;
+    }
+    setError('');
+    try {
+      await documentApi.updateStatus(id, { status, rejectionReason: reason || undefined });
+      setSelected(null);
+      setReason('');
+      await load();
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
+    }
+  };
+
+  const filtered = documents.filter((d) => {
+    const q = search.toLowerCase();
+    const typeName = d.documentType.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    return !q || typeName.includes(q) || (d.title || '').toLowerCase().includes(q);
+  });
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  if (selected) {
+    return (
+      <div className="card">
+        <h2>Document Details</h2>
+        {error && <div className="alert alert-error">{error}</div>}
+        <div className="detail-grid">
+          <div><strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}</div>
+          <div><strong>Title:</strong> {selected.title}</div>
+          <div><strong>Status:</strong> <span className="badge" style={{ backgroundColor: STATUS_COLORS[selected.status] || '#6b7280' }}>{selected.status}</span></div>
+          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
+          <div><strong>Reference #:</strong> {selected.referenceNumber || '—'}</div>
+        </div>
+        {selected.description && (
+          <div className="detail-description">
+            <strong>Description:</strong>
+            <p>{selected.description}</p>
+          </div>
+        )}
+        {selected.rejectionReason && (
+          <div className="detail-description">
+            <strong>Previous Rejection:</strong>
+            <p>{selected.rejectionReason}</p>
+          </div>
+        )}
+        <div className="form-group" style={{ marginTop: '1rem' }}>
+          <label>Rejection Reason</label>
+          <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Required when rejecting..." />
+        </div>
+        <div className="btn-group">
+          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Ready')}>Approve</button>
+          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rejected')}>Reject</button>
+          <button className="btn btn-outline" onClick={() => { setSelected(null); setReason(''); setError(''); }}>Back</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="section-header">
+        <h2>Assigned Documents</h2>
+        <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+      </div>
+      {loading ? (
+        <p className="loading-text">Loading documents...</p>
+      ) : filtered.length === 0 ? (
+        <p className="empty">{search ? 'No matching documents.' : 'No pending documents assigned to you.'}</p>
+      ) : (
+        <>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Title</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.map((d) => (
+                <tr key={d.id}>
+                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td className="desc-cell">{d.title}</td>
+                  <td>
+                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
+                      {d.status}
+                    </span>
+                  </td>
+                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>Review</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {totalPages > 1 && (
+            <div className="pagination">
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
+              <span>Page {safePage} of {totalPages}</span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

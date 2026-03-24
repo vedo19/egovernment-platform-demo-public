@@ -1,0 +1,181 @@
+services:
+  # ───────────────────────────── Auth Database ─────────────────────────────
+  auth_db:
+    image: postgres:16-alpine
+    container_name: auth_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: auth_db
+    ports:
+      - "5436:5432"
+    volumes:
+      - auth_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ───────────────────────────── Auth Service ──────────────────────────────
+  auth_service:
+    build:
+      context: ./src/AuthService
+      dockerfile: Dockerfile
+    container_name: auth_service
+    ports:
+      - "5001:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=auth_db;Port=5432;Database=auth_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "EGovernmentPlatform"
+      Jwt__ExpiryMinutes: "60"
+      Admin__Email: "${ADMIN_EMAIL:-change-me-admin@example.com}"
+      Admin__Password: "${ADMIN_PASSWORD:-CHANGE_ME_STRONG_ADMIN_PASSWORD}"
+      Admin__FullName: "${ADMIN_FULLNAME:-System Administrator}"
+    depends_on:
+      auth_db:
+        condition: service_healthy
+
+  # ──────────────────────────── Citizen Database ───────────────────────────
+  citizen_db:
+    image: postgres:16-alpine
+    container_name: citizen_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: citizen_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - citizen_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ──────────────────────────── Citizen Service ────────────────────────────
+  citizen_service:
+    build:
+      context: ./src/CitizenService
+      dockerfile: Dockerfile
+    container_name: citizen_service
+    ports:
+      - "5002:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=citizen_db;Port=5432;Database=citizen_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "EGovernmentPlatform"
+    depends_on:
+      citizen_db:
+        condition: service_healthy
+
+  # ─────────────────────── Service Request Database ────────────────────────
+  request_db:
+    image: postgres:16-alpine
+    container_name: request_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: request_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - request_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────── Service Request Service ─────────────────────────
+  service_request_service:
+    build:
+      context: ./src/ServiceRequestService
+      dockerfile: Dockerfile
+    container_name: service_request_service
+    ports:
+      - "5003:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=request_db;Port=5432;Database=request_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "EGovernmentPlatform"
+    depends_on:
+      request_db:
+        condition: service_healthy
+
+  # ─────────────────────────── Document Database ───────────────────────────
+  document_db:
+    image: postgres:16-alpine
+    container_name: document_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: document_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - document_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────── Document Service ────────────────────────────
+  document_service:
+    build:
+      context: ./src/DocumentService
+      dockerfile: Dockerfile
+    container_name: document_service
+    ports:
+      - "5004:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=document_db;Port=5432;Database=document_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "EGovernmentPlatform"
+    depends_on:
+      document_db:
+        condition: service_healthy
+
+  # ══════════════════════════════ API Gateway ══════════════════════════════
+  api_gateway:
+    build:
+      context: ./src/ApiGateway
+      dockerfile: Dockerfile
+    container_name: api_gateway
+    ports:
+      - "5050:80"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    depends_on:
+      - auth_service
+      - citizen_service
+      - service_request_service
+      - document_service
+
+  # ══════════════════════════════ Frontend ═════════════════════════════════
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api_gateway
+
+volumes:
+  auth_db_data:
+  citizen_db_data:
+  request_db_data:
+  document_db_data:
