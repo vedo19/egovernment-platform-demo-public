@@ -178,6 +178,7 @@ function RequestsTab() {
   const [page, setPage] = useState(1);
   const [uploadingId, setUploadingId] = useState(null);
   const [uploadError, setUploadError] = useState('');
+  const [documentBusyId, setDocumentBusyId] = useState(null);
 
   useEffect(() => {
     loadRequests();
@@ -219,6 +220,20 @@ function RequestsTab() {
       setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to upload document');
     } finally {
       setUploadingId(null);
+    }
+  };
+
+  const handleOpenDocument = async (request) => {
+    if (!request.linkedDocumentId) return;
+    setUploadError('');
+    setDocumentBusyId(request.id);
+    try {
+      await documentApi.openSupportingFile(request.linkedDocumentId);
+    } catch (err) {
+      const d = err.response?.data;
+      setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open uploaded document');
+    } finally {
+      setDocumentBusyId(null);
     }
   };
 
@@ -286,6 +301,7 @@ function RequestsTab() {
                 <th>Progress</th>
                 <th>Officer Note</th>
                 <th>Upload PDF</th>
+                <th>Uploaded PDF</th>
                 <th>Created</th>
               </tr>
             </thead>
@@ -312,6 +328,13 @@ function RequestsTab() {
                     ) : (
                       '—'
                     )}
+                  </td>
+                  <td>
+                    {r.linkedDocumentId ? (
+                      <button className="btn btn-sm btn-outline" disabled={documentBusyId === r.id} onClick={() => handleOpenDocument(r)}>
+                        {documentBusyId === r.id ? 'Opening...' : 'View'}
+                      </button>
+                    ) : '—'}
                   </td>
                   <td>{new Date(r.createdAt).toLocaleDateString()}</td>
                 </tr>

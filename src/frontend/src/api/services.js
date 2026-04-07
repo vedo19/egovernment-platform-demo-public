@@ -59,4 +59,25 @@ export const documentApi = {
   reject: (id, reason) => client.put(`/api/documents/${id}/reject`, { reason }),
   assignOfficer: (id, officerId) =>
     client.put(`/api/documents/${id}/assign`, { officerId }),
+  getSupportingFileBlob: (id) =>
+    client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' }),
+  openSupportingFile: async (id) => {
+    const response = await client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 30000);
+  },
+  downloadSupportingFile: async (id, fileName = 'supporting-document.pdf') => {
+    const response = await client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' });
+    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };

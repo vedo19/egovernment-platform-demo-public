@@ -32,6 +32,7 @@ function OfficerRequestsTab() {
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [fileBusy, setFileBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -75,6 +76,33 @@ function OfficerRequestsTab() {
     }
   };
 
+  const handleOpenDocument = async (documentId) => {
+    setError('');
+    setFileBusy(true);
+    try {
+      await documentApi.openSupportingFile(documentId);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open document');
+    } finally {
+      setFileBusy(false);
+    }
+  };
+
+  const handleDownloadDocument = async (documentId, request) => {
+    setError('');
+    setFileBusy(true);
+    try {
+      const suggestedName = `${request.type}-${request.id}.pdf`;
+      await documentApi.downloadSupportingFile(documentId, suggestedName);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to download document');
+    } finally {
+      setFileBusy(false);
+    }
+  };
+
   const filtered = requests.filter((r) => {
     const q = search.toLowerCase();
     return !q || r.title.toLowerCase().includes(q) || r.type.toLowerCase().includes(q);
@@ -104,6 +132,16 @@ function OfficerRequestsTab() {
           <div className="detail-description">
             <strong>Previous Notes:</strong>
             <p>{selected.adminNotes}</p>
+          </div>
+        )}
+        {selected.linkedDocumentId && (
+          <div className="btn-group">
+            <button className="btn btn-primary" disabled={fileBusy} onClick={() => handleOpenDocument(selected.linkedDocumentId)}>
+              {fileBusy ? 'Opening...' : 'View Submitted PDF'}
+            </button>
+            <button className="btn btn-outline" disabled={fileBusy} onClick={() => handleDownloadDocument(selected.linkedDocumentId, selected)}>
+              Download PDF
+            </button>
           </div>
         )}
         <div className="form-group" style={{ marginTop: '1rem' }}>
