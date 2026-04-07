@@ -9,6 +9,7 @@ public class DocumentDbContext : DbContext
         : base(options) { }
 
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<SupportingDocument> SupportingDocuments => Set<SupportingDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -19,6 +20,14 @@ public class DocumentDbContext : DbContext
             entity.HasIndex(d => d.DocumentType);
             entity.HasIndex(d => d.ReferenceNumber).IsUnique()
                   .HasFilter("\"ReferenceNumber\" IS NOT NULL");
+        });
+
+        modelBuilder.Entity<SupportingDocument>(entity =>
+        {
+            entity.ToTable("SupportingDocuments");
+            entity.HasIndex(d => d.CitizenUserId);
+            entity.HasIndex(d => d.ServiceRequestId);
+            entity.HasIndex(d => d.UploadedAt);
         });
     }
 }

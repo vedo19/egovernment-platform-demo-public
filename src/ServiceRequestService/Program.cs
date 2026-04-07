@@ -60,6 +60,11 @@ builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
 builder.Services.AddScoped<IServiceRequestService, ServiceRequestServiceImpl>();
+builder.Services.AddHttpClient<IDocumentStorageClient, DocumentStorageClient>(client =>
+{
+    var baseUrl = builder.Configuration["DocumentService:BaseUrl"] ?? "http://localhost:5004/";
+    client.BaseAddress = new Uri(baseUrl.EndsWith('/') ? baseUrl : $"{baseUrl}/");
+});
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();

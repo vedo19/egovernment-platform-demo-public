@@ -1,19 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authApi, citizenApi, serviceRequestApi, documentApi } from '../api/services';
+import ProgressBar from '../components/ProgressBar';
 
-const STATUS_COLORS = {
-  Pending: '#f59e0b',
-  InProgress: '#3b82f6',
-  Processing: '#3b82f6',
-  Resolved: '#10b981',
-  Ready: '#10b981',
-  Collected: '#6b7280',
-  Rejected: '#ef4444',
-};
-
-const REQUEST_STATUSES = ['Pending', 'InProgress', 'Resolved', 'Rejected'];
-const DOC_STATUSES = ['Pending', 'Processing', 'Ready', 'Rejected', 'Collected'];
+const REQUEST_STATUSES = ['Submitted', 'OfficerAssigned', 'AwaitingDocuments', 'UnderReview', 'DocumentsRejected', 'Approved', 'Rejected'];
+const DOC_STATUSES = ['Submitted', 'UnderReview', 'Approved', 'Rejected'];
 const PAGE_SIZE = 8;
 
 export default function AdminDashboard() {
@@ -61,7 +52,7 @@ function RequestsTab() {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await serviceRequestApi.getAll(statusFilter || undefined);
+      const { data } = await serviceRequestApi.getAllRequests(statusFilter || undefined);
       setRequests(data);
       setPending({});
     } catch { /* empty */ } finally {
@@ -89,8 +80,8 @@ function RequestsTab() {
       if (changes.status && changes.status !== r.status) {
         await serviceRequestApi.updateStatus(r.id, { status: changes.status });
       }
-      if (changes.officerId) {
-        await serviceRequestApi.assignOfficer(r.id, changes.officerId);
+      if (changes.officerId && r.status === 'Submitted') {
+        await serviceRequestApi.assignOfficerV2(r.id, changes.officerId);
       }
       setSaved((s) => ({ ...s, [r.id]: true }));
       setPending((p) => { const n = { ...p }; delete n[r.id]; return n; });
@@ -139,6 +130,7 @@ function RequestsTab() {
                 <th>Title</th>
                 <th>Citizen ID</th>
                 <th>Status</th>
+                <th>Progress</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -153,10 +145,9 @@ function RequestsTab() {
                     <td>{r.type}</td>
                     <td className="desc-cell">{r.title}</td>
                     <td className="id-cell" title={r.citizenUserId}>{r.citizenUserId}</td>
-                    <td>
-                      <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
-                        {r.status}
-                      </span>
+                    <td>{r.status}</td>
+                    <td style={{ minWidth: '180px' }}>
+                      <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                     </td>
                     <td>{new Date(r.createdAt).toLocaleDateString()}</td>
                     <td className="actions-cell">
@@ -175,6 +166,7 @@ function RequestsTab() {
                           <select
                             value={pending[r.id]?.officerId || r.assignedOfficerId || ''}
                             onChange={(e) => setPendingField(r.id, 'officerId', e.target.value)}
+                            disabled={r.status !== 'Submitted'}
                           >
                             <option value="" disabled>Assign Officer</option>
                             {officers.map((o) => (
@@ -304,6 +296,7 @@ function DocumentsTab() {
               <tr>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Progress</th>
                 <th>Reference #</th>
                 <th>Citizen ID</th>
                 <th>Created</th>
@@ -318,10 +311,9 @@ function DocumentsTab() {
                 return (
                   <tr key={d.id}>
                     <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
-                    <td>
-                      <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
-                        {d.status}
-                      </span>
+                    <td>{d.status}</td>
+                    <td style={{ minWidth: '180px' }}>
+                      <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
                     </td>
                     <td>{d.referenceNumber || '—'}</td>
                     <td className="id-cell" title={d.citizenUserId}>{d.citizenUserId}</td>

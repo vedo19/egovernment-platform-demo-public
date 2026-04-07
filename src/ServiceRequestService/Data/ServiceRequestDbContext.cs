@@ -19,6 +19,7 @@ public class ServiceRequestDbContext : DbContext
             entity.HasIndex(sr => sr.CitizenUserId);
             entity.HasIndex(sr => sr.Status);
             entity.HasIndex(sr => sr.AssignedOfficerId);
+            entity.HasIndex(sr => sr.LinkedDocumentId);
         });
     }
 }
