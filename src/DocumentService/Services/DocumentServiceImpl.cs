@@ -125,6 +125,28 @@ public class DocumentServiceImpl : IDocumentService
         return ToDto(document);
     }
 
+    public async Task<(Stream FileStream, string FileName, string ContentType)> GetDocumentFileAsync(Guid documentId, Guid userId, string userRole)
+    {
+        var document = await _db.Documents.FindAsync(documentId)
+            ?? throw new KeyNotFoundException($"Document '{documentId}' not found.");
+
+        if (userRole is "Citizen" && document.CitizenUserId != userId)
+            throw new UnauthorizedAccessException();
+
+        if (document.Status is not ("Ready" or "Collected"))
+            throw new InvalidOperationException("Document is not yet ready for download.");
+
+        var templatePath = Path.Combine(AppContext.BaseDirectory, "Templates", $"{document.DocumentType}.pdf");
+
+        if (!File.Exists(templatePath))
+            throw new KeyNotFoundException($"Template file for '{document.DocumentType}' not found.");
+
+        var stream = new FileStream(templatePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var fileName = $"{document.DocumentType}_{document.ReferenceNumber ?? document.Id.ToString()}.pdf";
+
+        return (stream, fileName, "application/pdf");
+    }
+
     private static string GenerateReferenceNumber(string documentType)
     {
         var prefix = documentType switch

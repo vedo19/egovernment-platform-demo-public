@@ -38,4 +38,6 @@ export const documentApi = {
   updateStatus: (id, data) => client.put(`/api/documents/${id}/status`, data),
   assignOfficer: (id, officerId) =>
     client.put(`/api/documents/${id}/assign`, { officerId }),
+  download: (id) =>
+    client.get(`/api/documents/${id}/download`, { responseType: 'blob' }),
 };

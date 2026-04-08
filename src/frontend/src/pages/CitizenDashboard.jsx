@@ -342,6 +342,22 @@ function DocumentsTab() {
     }
   };
 
+  const handleDownload = async (doc) => {
+    try {
+      const { data } = await documentApi.download(doc.id);
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${doc.documentType}_${doc.referenceNumber || doc.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed', err);
+    }
+  };
+
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
     const typeName = d.documentType.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
@@ -405,6 +421,7 @@ function DocumentsTab() {
                 <th>Reason</th>
                 <th>Reference #</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -419,6 +436,11 @@ function DocumentsTab() {
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>
                   <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    {(d.status === 'Ready' || d.status === 'Collected') ? (
+                      <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>Download</button>
+                    ) : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>

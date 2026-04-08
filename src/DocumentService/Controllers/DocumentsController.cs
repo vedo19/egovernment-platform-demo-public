@@ -91,6 +91,18 @@ public class DocumentsController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
+    // ── GET /api/documents/{id}/download ── Download approved document
+    [HttpGet("{id:guid}/download")]
+    [Authorize]
+    public async Task<IActionResult> Download(Guid id)
+    {
+        var userId = GetUserId();
+        var role = User.FindFirst("role")?.Value ?? "";
+
+        var (fileStream, fileName, contentType) = await _documentService.GetDocumentFileAsync(id, userId, role);
+        return File(fileStream, contentType, fileName);
+    }
+
     // ── GET /api/documents/health ──
     [HttpGet("health")]
     [AllowAnonymous]
