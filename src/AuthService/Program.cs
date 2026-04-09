@@ -10,8 +10,20 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    var dbHost = builder.Configuration["AuthDb:Host"]
+        ?? throw new InvalidOperationException("Auth DB host is not configured.");
+    var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
+    var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
+    var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
+    var dbPassword = builder.Configuration["AuthDb:Password"]
+        ?? throw new InvalidOperationException("Auth DB password is not configured.");
+
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+}
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -63,6 +75,7 @@ builder.Services.AddAuthorization();
 // ---------- Application Services ----------
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthServiceImpl>();
+builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
@@ -101,5 +114,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();
