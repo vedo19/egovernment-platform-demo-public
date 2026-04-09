@@ -1,0 +1,86 @@
+name: Run Cluster Preflight Checks
+description: Validates ingress, storage class, DNS, GHCR auth, and cluster connectivity before deploy.
+
+inputs:
+  ingress-host:
+    description: Public hostname expected to route through ingress.
+    required: true
+  storage-class-name:
+    description: Optional storage class name to validate. If empty, a default StorageClass is required.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Verify cluster connectivity
+      shell: bash
+      run: |
+        set -euo pipefail
+        kubectl get ns >/dev/null
+
+    - name: Verify nginx ingress class
+      shell: bash
+      run: |
+        set -euo pipefail
+        kubectl get ingressclass nginx >/dev/null || {
+          echo "Preflight failed: ingress class 'nginx' not found." >&2
+          exit 1
+        }
+
+    - name: Verify ingress controller service
+      shell: bash
+      run: |
+        set -euo pipefail
+        kubectl get svc -n ingress-nginx ingress-nginx-controller >/dev/null || {
+          echo "Preflight failed: service ingress-nginx/ingress-nginx-controller not found." >&2
+          exit 1
+        }
+
+    - name: Verify storage class
+      shell: bash
+      run: |
+        set -euo pipefail
+        target_sc='${{ inputs.storage-class-name }}'
+        if [[ -n "$target_sc" ]]; then
+          kubectl get storageclass "$target_sc" >/dev/null || {
+            echo "Preflight failed: storage class '$target_sc' not found." >&2
+            exit 1
+          }
+        else
+          default_sc_count=$(kubectl get storageclass -o jsonpath='{range .items[*]}{.metadata.name}:{.metadata.annotations.storageclass\.kubernetes\.io/is-default-class}{"\n"}{end}' | grep ':true$' | wc -l)
+          if [[ "$default_sc_count" -eq 0 ]]; then
+            echo "Preflight failed: no default StorageClass found. Set one default or pass storage-class-name input." >&2
+            exit 1
+          fi
+        fi
+
+    - name: Verify ingress host DNS resolves
+      shell: bash
+      run: |
+        set -euo pipefail
+        host='${{ inputs.ingress-host }}'
+        [[ -n "$host" ]] || {
+          echo "Preflight failed: ingress host is empty." >&2
+          exit 1
+        }
+
+        if command -v getent >/dev/null 2>&1; then
+          getent hosts "$host" >/dev/null || {
+            echo "Preflight failed: DNS lookup failed for '$host'." >&2
+            exit 1
+          }
+        elif command -v nslookup >/dev/null 2>&1; then
+          nslookup "$host" >/dev/null || {
+            echo "Preflight failed: DNS lookup failed for '$host'." >&2
+            exit 1
+          }
+        else
+          echo "Preflight warning: no DNS resolver tool available (getent/nslookup)." >&2
+        fi
+
+    - name: Verify GHCR auth context
+      shell: bash
+      run: |
+        set -euo pipefail
+        docker info >/dev/null

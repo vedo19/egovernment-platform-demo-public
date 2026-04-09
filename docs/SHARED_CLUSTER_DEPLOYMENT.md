@@ -14,8 +14,11 @@ The repo now uses two deployment workflows on `main`:
 - `backend-deploy.yml` for backend, gateway, and cluster infrastructure changes.
 - `frontend-deploy.yml` for frontend-only changes.
 - `cluster-bootstrap.yml` for first-time cluster setup (manual run).
+- `preflight-check.yml` for manual prerequisite validation.
 
 The deploy workflows also support `workflow_dispatch` for manual redeploys.
+
+Both deploy workflows run preflight checks as a required gate before deployment starts.
 
 All workflows share reusable setup logic via:
 
@@ -28,15 +31,26 @@ Path filtering keeps the deploys focused:
 
 ## What Changes For Shared Cluster
 
-Use the current Kubernetes manifests as the base, then make these deployment-time changes:
+For shared environments, this repository uses the Kubernetes manifests as templates and applies production-safe overrides during CI/CD.
 
-- Replace `:dev` image references with registry images, for example `ghcr.io/<owner>/egovernment-platform-demo-public/auth-service:<tag>`.
-- Replace the Minikube-only document storage volume with a cluster-backed PVC.
-- Keep `ASPNETCORE_ENVIRONMENT=Production` in the shared config map.
-- Do not apply the local `k8s/storage/document-uploads.yaml` hostPath PV in shared environments.
-- Use a real DNS name instead of `egovernment.local` for Ingress.
+These overrides are applied automatically by:
 
-The repo currently has no notification or payment service, so the shared deployment covers only:
+- `backend-deploy.yml`
+- `frontend-deploy.yml`
+
+### Local vs Shared Behavior
+
+| Area | Local/Minikube | Shared Cluster |
+|---|---|---|
+| Image source | `*:dev` image tags | GHCR image tags using commit SHA |
+| App environment | `ASPNETCORE_ENVIRONMENT=Development` | `ASPNETCORE_ENVIRONMENT=Production` |
+| Ingress host | `egovernment.local` | `INGRESS_HOST` from repository secret or workflow input |
+| Document storage | hostPath PV (`k8s/storage/document-uploads.yaml`) | cluster PVC (no hostPath) |
+| Secrets source | placeholder local file values | generated from GitHub repository secrets |
+
+### Service Coverage
+
+Currently deployed by this repo:
 
 - Auth Service
 - Citizen Service
@@ -44,6 +58,11 @@ The repo currently has no notification or payment service, so the shared deploym
 - Service Request Service
 - API Gateway
 - Frontend
+
+Not included yet:
+
+- Notification Service
+- Payment Service
 
 ## Required Cluster Prerequisites
 
@@ -69,19 +88,7 @@ Create these repository secrets:
 - `RABBITMQ_DEFAULT_PASS` - RabbitMQ password.
 - `INGRESS_HOST` - the public hostname colleagues will open in a browser.
 
-## Exact Manifest Changes For Shared Cluster
-
-The repo-local manifests stay useful for Minikube, but the shared cluster should apply these changes at deploy time:
-
-| Area | Local Manifest | Shared Cluster Change |
-|---|---|---|
-| Images | `image: auth-service:dev` and similar | Use GHCR image names with immutable tags |
-| Environment | `ASPNETCORE_ENVIRONMENT=Development` | `ASPNETCORE_ENVIRONMENT=Production` |
-| Document storage | `k8s/storage/document-uploads.yaml` hostPath PV | Replace with PVC only and bind to cluster storage |
-| Ingress host | `egovernment.local` | Use the real `INGRESS_HOST` value |
-| Secrets | Repo-local placeholder secret file | Generate the secret in CI from GitHub Secrets |
-
-For the document service, the mounted path stays `/app/uploads`.
+For the document service, the mounted path remains `/app/uploads` in both modes.
 
 ## Deployment Order
 
@@ -135,6 +142,10 @@ Expected behavior:
 - Gateway should answer `/health`.
 - `GET /api/auth/me` without a token should return `401`.
 - The frontend should load from the ingress hostname, not from localhost.
+
+You can also run the dedicated preflight workflow manually before any deployment:
+
+- `preflight-check.yml`
 
 ## Colleague Access Pattern
 
