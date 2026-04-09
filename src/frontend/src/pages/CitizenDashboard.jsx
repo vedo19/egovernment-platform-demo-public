@@ -420,6 +420,7 @@ function DocumentsTab() {
                 <th>Status</th>
                 <th>Reason</th>
                 <th>Reference #</th>
+                <th>Expires</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -435,6 +436,7 @@ function DocumentsTab() {
                   </td>
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>
+                  <td>{d.status === 'Ready' || d.status === 'Collected' ? (d.expiresAt ? new Date(d.expiresAt).toLocaleDateString() : 'No expiry') : '—'}</td>
                   <td>{new Date(d.createdAt).toLocaleDateString()}</td>
                   <td>
                     {(d.status === 'Ready' || d.status === 'Collected') ? (

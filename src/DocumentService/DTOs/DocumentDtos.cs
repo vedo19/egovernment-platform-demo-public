@@ -40,4 +40,6 @@ public class DocumentDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public DateTime? GeneratedAt { get; set; }
 }

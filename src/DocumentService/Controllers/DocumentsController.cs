@@ -99,8 +99,17 @@ public class DocumentsController : ControllerBase
         var userId = GetUserId();
         var role = User.FindFirst("role")?.Value ?? "";
 
-        var (fileStream, fileName, contentType) = await _documentService.GetDocumentFileAsync(id, userId, role);
-        return File(fileStream, contentType, fileName);
+        var (fileContent, fileName, contentType) = await _documentService.GetDocumentFileAsync(id, userId, role);
+        return File(fileContent, contentType, fileName);
+    }
+
+    // ── GET /api/documents/{id}/preview ── Officer/Admin previews draft document
+    [HttpGet("{id:guid}/preview")]
+    [Authorize(Roles = "Admin,Officer")]
+    public async Task<IActionResult> Preview(Guid id)
+    {
+        var (fileContent, fileName, contentType) = await _documentService.GeneratePreviewAsync(id);
+        return File(fileContent, contentType, fileName);
     }
 
     // ── GET /api/documents/health ──

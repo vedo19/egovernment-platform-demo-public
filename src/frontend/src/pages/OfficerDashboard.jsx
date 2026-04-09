@@ -178,6 +178,8 @@ function OfficerDocumentsTab() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -202,10 +204,33 @@ function OfficerDocumentsTab() {
       await documentApi.updateStatus(id, { status, rejectionReason: reason || undefined });
       setSelected(null);
       setReason('');
+      setPreviewUrl(null);
       await load();
     } catch (err) {
       const d = err.response?.data;
       setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
+    }
+  };
+
+  const handlePreview = async (id) => {
+    setPreviewLoading(true);
+    setError('');
+    try {
+      const { data } = await documentApi.preview(id);
+      const url = window.URL.createObjectURL(data);
+      setPreviewUrl(url);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Failed to load preview');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
     }
   };
 
@@ -243,14 +268,36 @@ function OfficerDocumentsTab() {
             <p>{selected.rejectionReason}</p>
           </div>
         )}
+
+        {previewUrl && (
+          <div style={{ margin: '1rem 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <strong>Document Preview (Draft)</strong>
+              <button className="btn btn-sm btn-outline" onClick={closePreview}>Close Preview</button>
+            </div>
+            <iframe
+              src={previewUrl}
+              title="Document Preview"
+              style={{ width: '100%', height: '500px', border: '1px solid #d1d5db', borderRadius: '8px' }}
+            />
+          </div>
+        )}
+
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label>Rejection Reason</label>
           <textarea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Required when rejecting..." />
         </div>
         <div className="btn-group">
+          <button
+            className="btn btn-outline"
+            onClick={() => handlePreview(selected.id)}
+            disabled={previewLoading}
+          >
+            {previewLoading ? 'Loading...' : 'Preview Document'}
+          </button>
           <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Ready')}>Approve</button>
           <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rejected')}>Reject</button>
-          <button className="btn btn-outline" onClick={() => { setSelected(null); setReason(''); setError(''); }}>Back</button>
+          <button className="btn btn-outline" onClick={() => { setSelected(null); setReason(''); setError(''); closePreview(); }}>Back</button>
         </div>
       </div>
     );

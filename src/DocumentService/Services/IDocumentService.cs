@@ -11,5 +11,6 @@ public interface IDocumentService
     Task<IEnumerable<DocumentDto>> GetByOfficerAsync(Guid officerId);
     Task<DocumentDto?> UpdateStatusAsync(Guid id, Guid officerId, UpdateDocumentStatusDto dto);
     Task<DocumentDto?> AssignOfficerAsync(Guid id, Guid officerId);
-    Task<(Stream FileStream, string FileName, string ContentType)> GetDocumentFileAsync(Guid documentId, Guid userId, string userRole);
+    Task<(byte[] FileContent, string FileName, string ContentType)> GetDocumentFileAsync(Guid documentId, Guid userId, string userRole);
+    Task<(byte[] FileContent, string FileName, string ContentType)> GeneratePreviewAsync(Guid documentId);
 }

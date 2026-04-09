@@ -5,6 +5,9 @@ using DocumentService.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using QuestPDF.Infrastructure;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -59,6 +62,12 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("CitizenService", client =>
+{
+    client.BaseAddress = new Uri("http://citizen_service:80");
+});
+builder.Services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 builder.Services.AddScoped<IDocumentService, DocumentServiceImpl>();
 
 // ---------- Controllers ----------

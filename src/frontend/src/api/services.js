@@ -40,4 +40,6 @@ export const documentApi = {
     client.put(`/api/documents/${id}/assign`, { officerId }),
   download: (id) =>
     client.get(`/api/documents/${id}/download`, { responseType: 'blob' }),
+  preview: (id) =>
+    client.get(`/api/documents/${id}/preview`, { responseType: 'blob' }),
 };

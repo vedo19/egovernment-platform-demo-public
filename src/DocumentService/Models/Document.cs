@@ -35,4 +35,9 @@ public class Document
     public DateTime? UpdatedAt { get; set; }
 
     public DateTime? CompletedAt { get; set; }
+
+    // ── PDF storage & expiry ──
+    public byte[]? FileContent { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public DateTime? GeneratedAt { get; set; }
 }
