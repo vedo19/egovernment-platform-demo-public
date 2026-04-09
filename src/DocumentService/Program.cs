@@ -9,8 +9,20 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    var dbHost = builder.Configuration["DocumentDb:Host"]
+        ?? throw new InvalidOperationException("Document DB host is not configured.");
+    var dbPort = builder.Configuration["DocumentDb:Port"] ?? "5432";
+    var dbName = builder.Configuration["DocumentDb:Database"] ?? "document_db";
+    var dbUser = builder.Configuration["DocumentDb:Username"] ?? "postgres";
+    var dbPassword = builder.Configuration["DocumentDb:Password"]
+        ?? throw new InvalidOperationException("Document DB password is not configured.");
+
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+}
 
 builder.Services.AddDbContext<DocumentDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -60,6 +72,7 @@ builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
 builder.Services.AddScoped<IDocumentService, DocumentServiceImpl>();
+builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
@@ -80,5 +93,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();

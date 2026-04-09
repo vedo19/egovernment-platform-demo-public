@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: egovernment
+data:
+  ASPNETCORE_ENVIRONMENT: Development
+  AuthDb__Host: auth-postgres.egovernment-db.svc.cluster.local
+  AuthDb__Port: "5432"
+  AuthDb__Database: auth_db
+  AuthDb__Username: postgres
+  CitizenDb__Host: citizen-postgres.egovernment-db.svc.cluster.local
+  CitizenDb__Port: "5432"
+  CitizenDb__Database: citizen_db
+  CitizenDb__Username: postgres
+  RequestDb__Host: request-postgres.egovernment-db.svc.cluster.local
+  RequestDb__Port: "5432"
+  RequestDb__Database: request_db
+  RequestDb__Username: postgres
+  DocumentDb__Host: document-postgres.egovernment-db.svc.cluster.local
+  DocumentDb__Port: "5432"
+  DocumentDb__Database: document_db
+  DocumentDb__Username: postgres
+  NotificationDb__Host: notification-postgres.egovernment-db.svc.cluster.local
+  NotificationDb__Port: "5432"
+  NotificationDb__Database: notification_db
+  NotificationDb__Username: postgres
+  AuditDb__Host: audit-postgres.egovernment-db.svc.cluster.local
+  AuditDb__Port: "5432"
+  AuditDb__Database: audit_db
+  AuditDb__Username: postgres
+  RabbitMQ__Host: rabbitmq.messaging.svc.cluster.local
+  RabbitMQ__Port: "5672"
+  Jwt__Issuer: AuthService
+  Jwt__Audience: EGovernmentPlatform
+  DocumentStorage__Path: /app/uploads
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-config
+  namespace: egovernment-db
+data:
+  POSTGRES_USER: postgres
+  AuthDb__Database: auth_db
+  CitizenDb__Database: citizen_db
+  RequestDb__Database: request_db
+  DocumentDb__Database: document_db
+  NotificationDb__Database: notification_db
+  AuditDb__Database: audit_db

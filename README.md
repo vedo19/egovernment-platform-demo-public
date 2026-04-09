@@ -258,6 +258,16 @@ egovernment-platform-demo/
 
 ## API Endpoints Quick Reference
 
+## Shared Cluster Deployment
+
+If you want one shared environment for the whole team, use the guide in [docs/SHARED_CLUSTER_DEPLOYMENT.md](docs/SHARED_CLUSTER_DEPLOYMENT.md).
+
+That guide explains:
+
+- which manifest values change for a shared cluster,
+- how the split GitHub Actions deploy pipelines build and push images,
+- and how colleagues access the app through Ingress and DNS.
+
 All endpoints are accessed through the gateway at `http://localhost:5050`.
 
 ### Auth Service — `/api/auth/`

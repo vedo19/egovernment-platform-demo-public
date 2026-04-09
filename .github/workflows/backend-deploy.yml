@@ -1,0 +1,195 @@
+name: Backend Deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/AuthService/**'
+      - 'src/CitizenService/**'
+      - 'src/DocumentService/**'
+      - 'src/ServiceRequestService/**'
+      - 'src/ApiGateway/**'
+      - 'k8s/config/**'
+      - 'k8s/postgres/**'
+      - 'k8s/rabbitmq/**'
+      - 'k8s/services/auth-service.yaml'
+      - 'k8s/services/citizen-service.yaml'
+      - 'k8s/services/document-service.yaml'
+      - 'k8s/services/service-request-service.yaml'
+      - 'k8s/services/api-gateway.yaml'
+      - 'k8s/storage/**'
+      - 'k8s/ingress/**'
+  workflow_dispatch:
+    inputs:
+      ingress_host:
+        description: Public hostname for the cluster ingress
+        required: true
+        default: egovernment.example.com
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: backend-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/egovernment-platform-demo-public
+      IMAGE_TAG: ${{ github.sha }}
+      NAMESPACE: egovernment
+      DB_NAMESPACE: egovernment-db
+      MESSAGING_NAMESPACE: messaging
+      INGRESS_HOST: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Build and push auth image
+        run: |
+          docker build -f src/AuthService/Dockerfile -t "$IMAGE_PREFIX/auth-service:$IMAGE_TAG" -t "$IMAGE_PREFIX/auth-service:latest" .
+          docker push "$IMAGE_PREFIX/auth-service:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/auth-service:latest"
+
+      - name: Build and push citizen image
+        run: |
+          docker build -f src/CitizenService/Dockerfile -t "$IMAGE_PREFIX/citizen-service:$IMAGE_TAG" -t "$IMAGE_PREFIX/citizen-service:latest" .
+          docker push "$IMAGE_PREFIX/citizen-service:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/citizen-service:latest"
+
+      - name: Build and push document image
+        run: |
+          docker build -f src/DocumentService/Dockerfile -t "$IMAGE_PREFIX/document-service:$IMAGE_TAG" -t "$IMAGE_PREFIX/document-service:latest" .
+          docker push "$IMAGE_PREFIX/document-service:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/document-service:latest"
+
+      - name: Build and push service request image
+        run: |
+          docker build -f src/ServiceRequestService/Dockerfile -t "$IMAGE_PREFIX/service-request-service:$IMAGE_TAG" -t "$IMAGE_PREFIX/service-request-service:latest" .
+          docker push "$IMAGE_PREFIX/service-request-service:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/service-request-service:latest"
+
+      - name: Build and push gateway image
+        run: |
+          docker build -f src/ApiGateway/Dockerfile -t "$IMAGE_PREFIX/api-gateway:$IMAGE_TAG" -t "$IMAGE_PREFIX/api-gateway:latest" .
+          docker push "$IMAGE_PREFIX/api-gateway:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/api-gateway:latest"
+
+      - name: Render backend manifests
+        run: |
+          set -euo pipefail
+
+          rm -rf _deploy
+          mkdir -p _deploy/k8s/config _deploy/k8s/services _deploy/k8s/storage _deploy/k8s/ingress _deploy/k8s/postgres
+
+          cp k8s/config/configmap-app.yaml _deploy/k8s/config/configmap-app.yaml
+          cp k8s/postgres/*.yaml _deploy/k8s/postgres/
+          cp k8s/services/auth-service.yaml _deploy/k8s/services/auth-service.yaml
+          cp k8s/services/citizen-service.yaml _deploy/k8s/services/citizen-service.yaml
+          cp k8s/services/document-service.yaml _deploy/k8s/services/document-service.yaml
+          cp k8s/services/service-request-service.yaml _deploy/k8s/services/service-request-service.yaml
+          cp k8s/services/api-gateway.yaml _deploy/k8s/services/api-gateway.yaml
+          cp k8s/ingress/ingress.yaml _deploy/k8s/ingress/ingress.yaml
+
+          rm -f _deploy/k8s/config/secret-app.yaml
+
+          cat > _deploy/k8s/config/secret-backend.yaml <<EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: app-secrets
+            namespace: egovernment
+          type: Opaque
+          stringData:
+            AuthDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            CitizenDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            RequestDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            DocumentDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            NotificationDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            AuditDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            Jwt__Key: ${{ secrets.JWT_SECRET_KEY }}
+            Admin__Email: ${{ secrets.ADMIN_EMAIL }}
+            Admin__Password: ${{ secrets.ADMIN_PASSWORD }}
+            Admin__FullName: ${{ secrets.ADMIN_FULLNAME }}
+            RabbitMQ__Username: ${{ secrets.RABBITMQ_DEFAULT_USER }}
+            RabbitMQ__Password: ${{ secrets.RABBITMQ_DEFAULT_PASS }}
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: app-secrets
+            namespace: egovernment-db
+          type: Opaque
+          stringData:
+            AuthDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            CitizenDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            RequestDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            DocumentDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            NotificationDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            AuditDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+          EOF
+
+          cat > _deploy/k8s/storage/document-uploads-shared.yaml <<'EOF'
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: document-uploads-pvc
+            namespace: egovernment
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+          EOF
+
+          sed -i "s/ASPNETCORE_ENVIRONMENT: Development/ASPNETCORE_ENVIRONMENT: Production/" _deploy/k8s/config/configmap-app.yaml
+          sed -i "s|egovernment.local|${INGRESS_HOST}|g" _deploy/k8s/ingress/ingress.yaml
+
+          sed -i "s|image: auth-service:dev|image: ${IMAGE_PREFIX}/auth-service:${IMAGE_TAG}|g" _deploy/k8s/services/auth-service.yaml
+          sed -i "s|image: citizen-service:dev|image: ${IMAGE_PREFIX}/citizen-service:${IMAGE_TAG}|g" _deploy/k8s/services/citizen-service.yaml
+          sed -i "s|image: document-service:dev|image: ${IMAGE_PREFIX}/document-service:${IMAGE_TAG}|g" _deploy/k8s/services/document-service.yaml
+          sed -i "s|image: service-request-service:dev|image: ${IMAGE_PREFIX}/service-request-service:${IMAGE_TAG}|g" _deploy/k8s/services/service-request-service.yaml
+          sed -i "s|image: api-gateway:dev|image: ${IMAGE_PREFIX}/api-gateway:${IMAGE_TAG}|g" _deploy/k8s/services/api-gateway.yaml
+
+      - name: Apply namespaces and infrastructure
+        run: |
+          kubectl apply -f k8s/namespaces/
+          kubectl apply -f _deploy/k8s/config/configmap-app.yaml
+          kubectl apply -f _deploy/k8s/config/secret-backend.yaml
+          kubectl apply -f _deploy/k8s/postgres/
+          kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
+          kubectl apply -f _deploy/k8s/storage/document-uploads-shared.yaml
+
+      - name: Apply backend services and ingress
+        run: |
+          kubectl apply -f _deploy/k8s/services/auth-service.yaml
+          kubectl apply -f _deploy/k8s/services/citizen-service.yaml
+          kubectl apply -f _deploy/k8s/services/document-service.yaml
+          kubectl apply -f _deploy/k8s/services/service-request-service.yaml
+          kubectl apply -f _deploy/k8s/services/api-gateway.yaml
+          kubectl apply -f _deploy/k8s/ingress/ingress.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/auth-service -n "$NAMESPACE" --timeout=10m
+          kubectl rollout status deployment/citizen-service -n "$NAMESPACE" --timeout=10m
+          kubectl rollout status deployment/document-service -n "$NAMESPACE" --timeout=10m
+          kubectl rollout status deployment/service-request-service -n "$NAMESPACE" --timeout=10m
+          kubectl rollout status deployment/api-gateway -n "$NAMESPACE" --timeout=10m
+
+      - name: Show final status
+        run: |
+          kubectl get pods -n "$NAMESPACE"
+          kubectl get svc -n "$NAMESPACE"
+          kubectl get ingress -n "$NAMESPACE"

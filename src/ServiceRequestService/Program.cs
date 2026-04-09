@@ -9,8 +9,20 @@ using ServiceRequestService.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    var dbHost = builder.Configuration["RequestDb:Host"]
+        ?? throw new InvalidOperationException("Request DB host is not configured.");
+    var dbPort = builder.Configuration["RequestDb:Port"] ?? "5432";
+    var dbName = builder.Configuration["RequestDb:Database"] ?? "request_db";
+    var dbUser = builder.Configuration["RequestDb:Username"] ?? "postgres";
+    var dbPassword = builder.Configuration["RequestDb:Password"]
+        ?? throw new InvalidOperationException("Request DB password is not configured.");
+
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+}
 
 builder.Services.AddDbContext<ServiceRequestDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -60,6 +72,7 @@ builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
 builder.Services.AddScoped<IServiceRequestService, ServiceRequestServiceImpl>();
+builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
@@ -80,5 +93,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();

@@ -1,0 +1,116 @@
+name: Cluster Bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      ingress_host:
+        description: Public hostname for the cluster ingress
+        required: true
+        default: egovernment.example.com
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: cluster-bootstrap-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    env:
+      INGRESS_HOST: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Render bootstrap manifests
+        run: |
+          set -euo pipefail
+
+          rm -rf _bootstrap
+          mkdir -p _bootstrap/k8s/config _bootstrap/k8s/storage _bootstrap/k8s/ingress _bootstrap/k8s/postgres
+
+          cp k8s/config/configmap-app.yaml _bootstrap/k8s/config/configmap-app.yaml
+          cp k8s/postgres/*.yaml _bootstrap/k8s/postgres/
+          cp k8s/ingress/ingress.yaml _bootstrap/k8s/ingress/ingress.yaml
+          cp k8s/rabbitmq/rabbitmq.yaml _bootstrap/k8s/rabbitmq.yaml
+
+          cat > _bootstrap/k8s/config/secret-bootstrap.yaml <<EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: app-secrets
+            namespace: egovernment
+          type: Opaque
+          stringData:
+            AuthDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            CitizenDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            RequestDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            DocumentDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            NotificationDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            AuditDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            Jwt__Key: ${{ secrets.JWT_SECRET_KEY }}
+            Admin__Email: ${{ secrets.ADMIN_EMAIL }}
+            Admin__Password: ${{ secrets.ADMIN_PASSWORD }}
+            Admin__FullName: ${{ secrets.ADMIN_FULLNAME }}
+            RabbitMQ__Username: ${{ secrets.RABBITMQ_DEFAULT_USER }}
+            RabbitMQ__Password: ${{ secrets.RABBITMQ_DEFAULT_PASS }}
+          ---
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: app-secrets
+            namespace: egovernment-db
+          type: Opaque
+          stringData:
+            AuthDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            CitizenDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            RequestDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            DocumentDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            NotificationDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+            AuditDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
+          EOF
+
+          cat > _bootstrap/k8s/storage/document-uploads-shared.yaml <<'EOF'
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: document-uploads-pvc
+            namespace: egovernment
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+          EOF
+
+          sed -i "s/ASPNETCORE_ENVIRONMENT: Development/ASPNETCORE_ENVIRONMENT: Production/" _bootstrap/k8s/config/configmap-app.yaml
+          sed -i "s|egovernment.local|${INGRESS_HOST}|g" _bootstrap/k8s/ingress/ingress.yaml
+
+      - name: Apply bootstrap resources
+        run: |
+          kubectl apply -f k8s/namespaces/
+          kubectl apply -f _bootstrap/k8s/config/configmap-app.yaml
+          kubectl apply -f _bootstrap/k8s/config/secret-bootstrap.yaml
+          kubectl apply -f _bootstrap/k8s/postgres/
+          kubectl apply -f _bootstrap/k8s/rabbitmq.yaml
+          kubectl apply -f _bootstrap/k8s/storage/document-uploads-shared.yaml
+          kubectl apply -f _bootstrap/k8s/ingress/ingress.yaml
+
+      - name: Show bootstrap status
+        run: |
+          kubectl get ns
+          kubectl get pods -n egovernment-db
+          kubectl get pods -n messaging
+          kubectl get configmaps,secrets -n egovernment
+          kubectl get ingress -n egovernment
