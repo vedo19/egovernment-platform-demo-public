@@ -1,0 +1,60 @@
+name: PR Backend Quality
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/AuthService/**'
+      - 'src/CitizenService/**'
+      - 'src/DocumentService/**'
+      - 'src/ServiceRequestService/**'
+      - 'src/ApiGateway/**'
+      - 'gradprojdemo.sln'
+      - '.github/workflows/pr-backend-quality.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Restore solution
+        run: dotnet restore gradprojdemo.sln
+
+      - name: Lint (dotnet format)
+        run: dotnet format gradprojdemo.sln --verify-no-changes --severity warn
+
+      - name: Typecheck (build)
+        run: dotnet build gradprojdemo.sln --configuration Release --no-restore /warnaserror
+
+      - name: Prettier format check (backend config/docs)
+        run: |
+          files=$(git ls-files \
+            'src/**/appsettings*.json' \
+            'src/ApiGateway/ocelot.json' \
+            'src/**/Dockerfile' \
+            'k8s/**/*.yaml' \
+            'k8s/**/*.yml' \
+            'docs/**/*.md' \
+            '.github/workflows/**/*.yml')
+
+          if [ -z "$files" ]; then
+            echo "No files matched for Prettier check."
+            exit 0
+          fi
+
+          npx prettier@3 --check $files
