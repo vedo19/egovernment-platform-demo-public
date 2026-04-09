@@ -1,0 +1,59 @@
+# Backend API Contract Snapshot
+
+Generated from controller and gateway route declarations.
+
+## AuthService/Auth
+
+- GET /api/Auth/health
+- GET /api/Auth/me
+- GET /api/Auth/users
+- GET /api/Auth/users/{id:guid}
+- POST /api/Auth/login
+- POST /api/Auth/register
+- PUT /api/Auth/users/{id:guid}/role
+
+## CitizenService/Citizens
+
+- GET /api/Citizens
+- GET /api/Citizens/by-user/{userId:guid}
+- GET /api/Citizens/health
+- GET /api/Citizens/{id:guid}
+- GET /api/Citizens/profile
+- POST /api/Citizens/profile
+- PUT /api/Citizens/profile
+
+## DocumentService/Documents
+
+- GET /api/Documents
+- GET /api/Documents/health
+- GET /api/Documents/{id:guid}
+- GET /api/Documents/{id:guid}/file
+- GET /api/Documents/my-assignments
+- GET /api/Documents/my-documents
+- POST /api/Documents
+- POST /api/Documents/{id:guid}/upload
+- PUT /api/Documents/{id:guid}/assign
+- PUT /api/Documents/{id:guid}/status
+
+## ServiceRequestService/ServiceRequests
+
+- GET /api/ServiceRequests
+- GET /api/ServiceRequests/health
+- GET /api/ServiceRequests/{id:guid}
+- GET /api/ServiceRequests/my-assignments
+- GET /api/ServiceRequests/my-requests
+- POST /api/ServiceRequests
+- PUT /api/ServiceRequests/{id:guid}/assign
+- PUT /api/ServiceRequests/{id:guid}/status
+
+## ApiGateway/Routes
+
+- PATH /api/auth/{everything}
+- PATH /api/citizens
+- PATH /api/citizens/{everything}
+- PATH /api/documents
+- PATH /api/documents/{everything}
+- PATH /api/servicerequests
+- PATH /api/servicerequests/{everything}
+- GET /health
+
