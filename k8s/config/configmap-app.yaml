@@ -33,6 +33,7 @@ data:
   RabbitMQ__Port: "5672"
   Jwt__Issuer: AuthService
   Jwt__Audience: EGovernmentPlatform
+  DocumentStorage__Path: /app/uploads
 ---
 apiVersion: v1
 kind: ConfigMap

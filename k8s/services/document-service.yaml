@@ -1,21 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service
+  name: document-service
   namespace: egovernment
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: auth-service
+      app: document-service
   template:
     metadata:
       labels:
-        app: auth-service
+        app: document-service
     spec:
+      securityContext:
+        fsGroup: 10001
       containers:
-        - name: auth-service
-          image: auth-service:dev
+        - name: document-service
+          image: document-service:dev
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -27,7 +29,7 @@ spec:
                 name: app-secrets
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /api/documents/health
               port: 8080
             initialDelaySeconds: 15
             periodSeconds: 10
@@ -35,18 +37,10 @@ spec:
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /api/documents/health
               port: 8080
             initialDelaySeconds: 30
             periodSeconds: 20
-            timeoutSeconds: 3
-            failureThreshold: 6
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
-            initialDelaySeconds: 15
-            periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 6
           resources:
@@ -56,15 +50,22 @@ spec:
             limits:
               cpu: 500m
               memory: 512Mi
+          volumeMounts:
+            - name: document-uploads
+              mountPath: /app/uploads
+      volumes:
+        - name: document-uploads
+          persistentVolumeClaim:
+            claimName: document-uploads-pvc
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: auth-service
+  name: document-service
   namespace: egovernment
 spec:
   selector:
-    app: auth-service
+    app: document-service
   ports:
     - name: http
       port: 8080
