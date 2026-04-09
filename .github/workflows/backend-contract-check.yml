@@ -1,0 +1,48 @@
+name: Backend Contract Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/AuthService/**'
+      - 'src/CitizenService/**'
+      - 'src/DocumentService/**'
+      - 'src/ServiceRequestService/**'
+      - 'src/ApiGateway/**'
+      - 'scripts/generate_backend_api_contract.sh'
+      - 'contracts/backend-api.snapshot'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  contract-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build backend services
+        run: |
+          dotnet build src/AuthService/AuthService.csproj --configuration Release
+          dotnet build src/CitizenService/CitizenService.csproj --configuration Release
+          dotnet build src/DocumentService/DocumentService.csproj --configuration Release
+          dotnet build src/ServiceRequestService/ServiceRequestService.csproj --configuration Release
+          dotnet build src/ApiGateway/ApiGateway.csproj --configuration Release
+
+      - name: Regenerate API contract snapshot
+        run: |
+          bash scripts/generate_backend_api_contract.sh contracts/backend-api.generated.snapshot
+
+      - name: Compare snapshots
+        run: |
+          if ! diff -u contracts/backend-api.snapshot contracts/backend-api.generated.snapshot; then
+            echo "API contract changed. Update contracts/backend-api.snapshot and include it in this PR." >&2
+            exit 1
+          fi
