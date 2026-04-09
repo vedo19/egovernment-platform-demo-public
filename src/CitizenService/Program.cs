@@ -9,8 +9,20 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    var dbHost = builder.Configuration["CitizenDb:Host"]
+        ?? throw new InvalidOperationException("Citizen DB host is not configured.");
+    var dbPort = builder.Configuration["CitizenDb:Port"] ?? "5432";
+    var dbName = builder.Configuration["CitizenDb:Database"] ?? "citizen_db";
+    var dbUser = builder.Configuration["CitizenDb:Username"] ?? "postgres";
+    var dbPassword = builder.Configuration["CitizenDb:Password"]
+        ?? throw new InvalidOperationException("Citizen DB password is not configured.");
+
+    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
+}
 
 builder.Services.AddDbContext<CitizenDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -60,6 +72,7 @@ builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
 builder.Services.AddScoped<ICitizenService, CitizenServiceImpl>();
+builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
@@ -80,5 +93,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();
