@@ -13,8 +13,13 @@ The repo now uses two deployment workflows on `main`:
 
 - `backend-deploy.yml` for backend, gateway, and cluster infrastructure changes.
 - `frontend-deploy.yml` for frontend-only changes.
+- `cluster-bootstrap.yml` for first-time cluster setup (manual run).
 
-Both workflows also support `workflow_dispatch` for manual redeploys.
+The deploy workflows also support `workflow_dispatch` for manual redeploys.
+
+All workflows share reusable setup logic via:
+
+- `.github/actions/setup-ghcr-kube/action.yml`
 
 Path filtering keeps the deploys focused:
 
@@ -95,6 +100,21 @@ Use this order in the shared cluster:
 11. Verify pods, services, and ingress routing.
 
 If the frontend has not been deployed yet, the ingress root path will stay unavailable until the frontend workflow runs at least once.
+
+## First-Time Bootstrap
+
+For a brand-new cluster, run `cluster-bootstrap.yml` once before normal deployments.
+
+It creates:
+
+- namespaces,
+- shared config and secrets,
+- PostgreSQL stateful resources,
+- RabbitMQ,
+- the document uploads PVC,
+- and ingress.
+
+After bootstrap, use `backend-deploy.yml` and `frontend-deploy.yml` for routine updates.
 
 ## Verification Checklist
 
