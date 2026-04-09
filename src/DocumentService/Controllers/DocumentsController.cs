@@ -91,6 +91,45 @@ public class DocumentsController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
+    [HttpPost("{id:guid}/upload")]
+    [Authorize(Roles = "Citizen")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadFile(Guid id, [FromForm] IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "File is required." });
+
+        var document = await _documentService.GetByIdAsync(id);
+        if (document is null) return NotFound();
+
+        if (document.CitizenUserId != GetUserId())
+            return Forbid();
+
+        var savedPath = await _documentService.SaveAttachmentAsync(id, file);
+        if (savedPath is null) return NotFound();
+
+        return Ok(new { documentId = id, fileName = Path.GetFileName(savedPath) });
+    }
+
+    [HttpGet("{id:guid}/file")]
+    [Authorize]
+    public async Task<IActionResult> DownloadFile(Guid id)
+    {
+        var document = await _documentService.GetByIdAsync(id);
+        if (document is null) return NotFound();
+
+        var role = User.FindFirst("role")?.Value;
+        if (role is "Citizen" && document.CitizenUserId != GetUserId())
+            return Forbid();
+
+        var filePath = await _documentService.GetAttachmentPathAsync(id);
+        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
+            return NotFound(new { error = "No uploaded file found for this document." });
+
+        var fileName = Path.GetFileName(filePath);
+        return PhysicalFile(filePath, "application/octet-stream", fileName);
+    }
+
     // ── GET /api/documents/health ──
     [HttpGet("health")]
     [AllowAnonymous]
