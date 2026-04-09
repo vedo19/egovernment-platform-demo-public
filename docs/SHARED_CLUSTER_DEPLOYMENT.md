@@ -7,6 +7,8 @@ This repository now has two deployment modes:
 
 The shared-cluster flow is the one to use when nobody should run the app locally.
 
+For shared deployment, keep the ingress endpoint in `INGRESS_HOST` and avoid hardcoding real public IP addresses in repository files.
+
 ## Automated Paths
 
 The repo now uses two deployment workflows on `main`:
@@ -44,7 +46,7 @@ These overrides are applied automatically by:
 |---|---|---|
 | Image source | `*:dev` image tags | GHCR image tags using commit SHA |
 | App environment | `ASPNETCORE_ENVIRONMENT=Development` | `ASPNETCORE_ENVIRONMENT=Production` |
-| Ingress host | `egovernment.local` | `INGRESS_HOST` from repository secret or workflow input |
+| Ingress host | `egovernment.local` | `INGRESS_HOST` from repository secret or workflow input, or a public IPv4-based host for direct access |
 | Document storage | hostPath PV (`k8s/storage/document-uploads.yaml`) | cluster PVC (no hostPath) |
 | Secrets source | placeholder local file values | generated from GitHub repository secrets |
 
@@ -70,7 +72,7 @@ Your cluster must already have:
 
 - NGINX Ingress Controller installed.
 - A default StorageClass or a named StorageClass for document uploads.
-- DNS pointing the public hostname to the ingress controller external address.
+- DNS pointing the public hostname to the ingress controller external address, or a direct public IP-based host if you are not using DNS.
 - Read/write access to GitHub Container Registry.
 - A Kubernetes kubeconfig stored as a GitHub secret for CI deployment.
 
@@ -86,7 +88,7 @@ Create these repository secrets:
 - `ADMIN_FULLNAME` - initial admin display name.
 - `RABBITMQ_DEFAULT_USER` - RabbitMQ username.
 - `RABBITMQ_DEFAULT_PASS` - RabbitMQ password.
-- `INGRESS_HOST` - the public hostname colleagues will open in a browser.
+- `INGRESS_HOST` - the public hostname or public IPv4-based host colleagues will open in a browser.
 
 For the document service, the mounted path remains `/app/uploads` in both modes.
 
