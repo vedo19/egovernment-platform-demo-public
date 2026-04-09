@@ -7,6 +7,20 @@ This repository now has two deployment modes:
 
 The shared-cluster flow is the one to use when nobody should run the app locally.
 
+## Automated Paths
+
+The repo now uses two deployment workflows on `main`:
+
+- `backend-deploy.yml` for backend, gateway, and cluster infrastructure changes.
+- `frontend-deploy.yml` for frontend-only changes.
+
+Both workflows also support `workflow_dispatch` for manual redeploys.
+
+Path filtering keeps the deploys focused:
+
+- Frontend changes under `src/frontend/**` trigger only the frontend workflow.
+- Backend service, gateway, Kubernetes, storage, and ingress changes trigger the backend workflow.
+
 ## What Changes For Shared Cluster
 
 Use the current Kubernetes manifests as the base, then make these deployment-time changes:
@@ -74,10 +88,13 @@ Use this order in the shared cluster:
 4. Apply PostgreSQL StatefulSets.
 5. Apply RabbitMQ.
 6. Apply the document upload PVC.
-7. Build and push images.
-8. Apply service deployments.
-9. Apply Ingress.
-10. Verify pods, services, and ingress routing.
+7. Build and push backend images.
+8. Apply backend service deployments and Ingress.
+9. Build and push the frontend image.
+10. Apply the frontend deployment.
+11. Verify pods, services, and ingress routing.
+
+If the frontend has not been deployed yet, the ingress root path will stay unavailable until the frontend workflow runs at least once.
 
 ## Verification Checklist
 

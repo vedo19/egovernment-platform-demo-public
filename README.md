@@ -265,7 +265,7 @@ If you want one shared environment for the whole team, use the guide in [docs/SH
 That guide explains:
 
 - which manifest values change for a shared cluster,
-- how the GitHub Actions deploy pipeline builds and pushes images,
+- how the split GitHub Actions deploy pipelines build and push images,
 - and how colleagues access the app through Ingress and DNS.
 
 All endpoints are accessed through the gateway at `http://localhost:5050`.
