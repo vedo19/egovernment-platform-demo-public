@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       ingress_host:
-        description: Public hostname for the cluster ingress
+        description: Public hostname or IPv4-based host for the cluster ingress
         required: true
         default: egovernment.example.com
 

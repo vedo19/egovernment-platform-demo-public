@@ -3,7 +3,7 @@ description: Validates ingress, storage class, DNS, GHCR auth, and cluster conne
 
 inputs:
   ingress-host:
-    description: Public hostname expected to route through ingress.
+    description: Public hostname or IPv4-based host expected to route through ingress.
     required: true
   storage-class-name:
     description: Optional storage class name to validate. If empty, a default StorageClass is required.
@@ -64,6 +64,11 @@ runs:
           echo "Preflight failed: ingress host is empty." >&2
           exit 1
         }
+
+        if [[ "$host" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+          echo "Preflight info: '$host' is a public IPv4 address; skipping DNS lookup."
+          exit 0
+        fi
 
         if command -v getent >/dev/null 2>&1; then
           getent hosts "$host" >/dev/null || {
