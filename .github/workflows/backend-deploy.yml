@@ -1,6 +1,24 @@
-name: Shared Cluster Deploy
+name: Backend Deploy
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/AuthService/**'
+      - 'src/CitizenService/**'
+      - 'src/DocumentService/**'
+      - 'src/ServiceRequestService/**'
+      - 'src/ApiGateway/**'
+      - 'k8s/config/**'
+      - 'k8s/postgres/**'
+      - 'k8s/rabbitmq/**'
+      - 'k8s/services/auth-service.yaml'
+      - 'k8s/services/citizen-service.yaml'
+      - 'k8s/services/document-service.yaml'
+      - 'k8s/services/service-request-service.yaml'
+      - 'k8s/services/api-gateway.yaml'
+      - 'k8s/storage/**'
+      - 'k8s/ingress/**'
   workflow_dispatch:
     inputs:
       ingress_host:
@@ -12,6 +30,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: backend-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -21,7 +43,7 @@ jobs:
       NAMESPACE: egovernment
       DB_NAMESPACE: egovernment-db
       MESSAGING_NAMESPACE: messaging
-      INGRESS_HOST: ${{ github.event.inputs.ingress_host }}
+      INGRESS_HOST: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,12 +85,6 @@ jobs:
           docker push "$IMAGE_PREFIX/api-gateway:$IMAGE_TAG"
           docker push "$IMAGE_PREFIX/api-gateway:latest"
 
-      - name: Build and push frontend image
-        run: |
-          docker build -f src/frontend/Dockerfile -t "$IMAGE_PREFIX/frontend:$IMAGE_TAG" -t "$IMAGE_PREFIX/frontend:latest" src/frontend
-          docker push "$IMAGE_PREFIX/frontend:$IMAGE_TAG"
-          docker push "$IMAGE_PREFIX/frontend:latest"
-
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
@@ -77,7 +93,7 @@ jobs:
           mkdir -p "$HOME/.kube"
           echo '${{ secrets.KUBE_CONFIG_B64 }}' | base64 -d > "$HOME/.kube/config"
 
-      - name: Render shared manifests
+      - name: Render backend manifests
         run: |
           set -euo pipefail
 
@@ -91,13 +107,11 @@ jobs:
           cp k8s/services/document-service.yaml _deploy/k8s/services/document-service.yaml
           cp k8s/services/service-request-service.yaml _deploy/k8s/services/service-request-service.yaml
           cp k8s/services/api-gateway.yaml _deploy/k8s/services/api-gateway.yaml
-          cp k8s/services/frontend.yaml _deploy/k8s/services/frontend.yaml
           cp k8s/ingress/ingress.yaml _deploy/k8s/ingress/ingress.yaml
 
           rm -f _deploy/k8s/config/secret-app.yaml
-          rm -f _deploy/k8s/storage/document-uploads.yaml
 
-          cat > _deploy/k8s/config/secret-shared.yaml <<EOF
+          cat > _deploy/k8s/config/secret-backend.yaml <<EOF
           apiVersion: v1
           kind: Secret
           metadata:
@@ -155,20 +169,23 @@ jobs:
           sed -i "s|image: document-service:dev|image: ${IMAGE_PREFIX}/document-service:${IMAGE_TAG}|g" _deploy/k8s/services/document-service.yaml
           sed -i "s|image: service-request-service:dev|image: ${IMAGE_PREFIX}/service-request-service:${IMAGE_TAG}|g" _deploy/k8s/services/service-request-service.yaml
           sed -i "s|image: api-gateway:dev|image: ${IMAGE_PREFIX}/api-gateway:${IMAGE_TAG}|g" _deploy/k8s/services/api-gateway.yaml
-          sed -i "s|image: frontend:dev|image: ${IMAGE_PREFIX}/frontend:${IMAGE_TAG}|g" _deploy/k8s/services/frontend.yaml
 
       - name: Apply namespaces and infrastructure
         run: |
           kubectl apply -f k8s/namespaces/
           kubectl apply -f _deploy/k8s/config/configmap-app.yaml
-          kubectl apply -f _deploy/k8s/config/secret-shared.yaml
+          kubectl apply -f _deploy/k8s/config/secret-backend.yaml
           kubectl apply -f _deploy/k8s/postgres/
           kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
           kubectl apply -f _deploy/k8s/storage/document-uploads-shared.yaml
 
-      - name: Apply services and ingress
+      - name: Apply backend services and ingress
         run: |
-          kubectl apply -f _deploy/k8s/services/
+          kubectl apply -f _deploy/k8s/services/auth-service.yaml
+          kubectl apply -f _deploy/k8s/services/citizen-service.yaml
+          kubectl apply -f _deploy/k8s/services/document-service.yaml
+          kubectl apply -f _deploy/k8s/services/service-request-service.yaml
+          kubectl apply -f _deploy/k8s/services/api-gateway.yaml
           kubectl apply -f _deploy/k8s/ingress/ingress.yaml
 
       - name: Wait for rollout
@@ -178,7 +195,6 @@ jobs:
           kubectl rollout status deployment/document-service -n "$NAMESPACE" --timeout=10m
           kubectl rollout status deployment/service-request-service -n "$NAMESPACE" --timeout=10m
           kubectl rollout status deployment/api-gateway -n "$NAMESPACE" --timeout=10m
-          kubectl rollout status deployment/frontend -n "$NAMESPACE" --timeout=10m
 
       - name: Show final status
         run: |
