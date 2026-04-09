@@ -1,0 +1,17 @@
+# Global fallback owner
+* @vedo19
+
+# Frontend ownership
+src/frontend/** @vedo19
+
+# Backend ownership
+src/AuthService/** @vedo19
+src/CitizenService/** @vedo19
+src/DocumentService/** @vedo19
+src/ServiceRequestService/** @vedo19
+src/ApiGateway/** @vedo19
+
+# Platform / DevOps ownership
+k8s/** @vedo19
+.github/workflows/** @vedo19
+docs/SHARED_CLUSTER_DEPLOYMENT.md @vedo19
