@@ -35,7 +35,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Run preflight checks
+        uses: ./.github/actions/run-preflight
+        with:
+          ingress-host: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+
   deploy:
+    needs: preflight
     runs-on: ubuntu-latest
     env:
       IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/egovernment-platform-demo-public
