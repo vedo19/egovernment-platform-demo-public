@@ -40,6 +40,30 @@ runs:
         api_server="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
         echo "Using Kubernetes API endpoint: ${api_server}"
 
+        api_without_scheme="${api_server#https://}"
+        api_without_scheme="${api_without_scheme#http://}"
+        api_host_port="${api_without_scheme%%/*}"
+        api_host="${api_host_port%%:*}"
+        api_port="${api_host_port##*:}"
+        if [[ "$api_port" == "$api_host_port" ]]; then
+          api_port="443"
+        fi
+
+        echo "API host: ${api_host}"
+        echo "API port: ${api_port}"
+
+        if command -v getent >/dev/null 2>&1; then
+          echo "API DNS resolution:" 
+          getent hosts "$api_host" || true
+        fi
+
+        runner_ip="$(curl -fsS --connect-timeout 5 --max-time 10 https://api.ipify.org || true)"
+        if [[ -n "$runner_ip" ]]; then
+          echo "Runner egress IPv4: ${runner_ip}"
+        else
+          echo "Runner egress IPv4: unavailable"
+        fi
+
         for attempt in {1..40}; do
           if kubectl --request-timeout=20s get --raw='/readyz' >/dev/null 2>&1; then
             echo "Kubernetes API is reachable."
@@ -48,6 +72,13 @@ runs:
 
           if [[ "$attempt" -eq 1 || "$attempt" -eq 10 || "$attempt" -eq 20 || "$attempt" -eq 30 ]]; then
             echo "Connectivity probe at attempt ${attempt}:"
+
+            if timeout 10 bash -c "</dev/tcp/${api_host}/${api_port}" >/dev/null 2>&1; then
+              echo "TCP probe reached ${api_host}:${api_port}."
+            else
+              echo "TCP probe could not reach ${api_host}:${api_port}."
+            fi
+
             if curl -kfsS --connect-timeout 10 --max-time 20 "${api_server%/}/readyz" >/dev/null 2>&1; then
               echo "curl probe reached API endpoint (TLS verification skipped for probe only)."
             else
