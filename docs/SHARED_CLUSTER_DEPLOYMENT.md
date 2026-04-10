@@ -248,3 +248,37 @@ What this repo does today is acceptable for a shared demo cluster, but a product
 2. Move CI to a self-hosted runner in the same private network.
 3. Stop exposing the Kubernetes API publicly.
 4. Replace the current bootstrap secret values with a managed secret workflow.
+
+## Nearly Production-Level Without Paying Anything
+
+If the goal is to stay free while getting close to a production setup, keep the current architecture shape but move the operational boundary inward.
+
+### Keep
+
+1. The single OCI VM running k3s.
+2. The split between `backend-deploy` and `frontend-deploy`.
+3. Namespace isolation for app, database, and messaging components.
+4. Ingress-based access through one stable public entry point.
+5. Rollout checks and preflight validation in GitHub Actions.
+
+### Change
+
+1. Run GitHub Actions on a self-hosted runner on the same VM, or on a second free VM in the same private network.
+2. Keep the Kubernetes API private to the runner instead of exposing `6443` broadly.
+3. Point deployment workflows at the private cluster endpoint or a local kubeconfig on the runner.
+4. Add TLS for ingress with a free certificate source such as Let\'s Encrypt.
+5. Move runtime secrets out of workflow inputs and into cluster-managed secrets or sealed secrets.
+
+### Remove
+
+1. Public access to the Kubernetes API after bootstrap.
+2. Any workflow assumption that a GitHub-hosted runner can always reach the cluster directly.
+3. Manual console-driven cluster setup once the base VM is provisioned.
+4. Ad hoc secret handling in deployment jobs.
+
+### What This Gives You
+
+1. A deployment model that behaves like production without paying for managed Kubernetes.
+2. A smaller attack surface because the control plane is not public.
+3. A CI/CD path that matches how real environments usually deploy.
+4. A setup that remains realistic for a public demo, class project, or portfolio system.
