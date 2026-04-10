@@ -227,6 +227,13 @@ jobs:
                 wait_for_api
                 break
               fi
+
+              if [[ "$attempt" -eq 1 ]]; then
+                echo "First failure details for namespace $namespace:" >&2
+                kubectl --request-timeout=60s create namespace "$namespace" >&2 || true
+                kubectl --request-timeout=60s get namespace "$namespace" >&2 || true
+              fi
+
               echo "Namespace create failed for $namespace (attempt $attempt). Retrying in 10s..."
               sleep 10
             done

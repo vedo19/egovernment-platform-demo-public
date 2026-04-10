@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       ingress_host:
-        description: Public hostname or IPv4-based host for the cluster ingress
+        description: "Public hostname or IPv4 host for the cluster ingress"
         required: true
         default: egovernment.example.com
 
@@ -19,8 +19,10 @@ concurrency:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+
     env:
       INGRESS_HOST: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,13 +39,14 @@ jobs:
           set -euo pipefail
 
           rm -rf _bootstrap
-          mkdir -p _bootstrap/k8s/config _bootstrap/k8s/storage _bootstrap/k8s/ingress _bootstrap/k8s/postgres
+          mkdir -p _bootstrap/k8s/{config,storage,ingress,postgres}
 
-          cp k8s/config/configmap-app.yaml _bootstrap/k8s/config/configmap-app.yaml
+          cp k8s/config/configmap-app.yaml _bootstrap/k8s/config/
           cp k8s/postgres/*.yaml _bootstrap/k8s/postgres/
-          cp k8s/ingress/ingress.yaml _bootstrap/k8s/ingress/ingress.yaml
+          cp k8s/ingress/ingress.yaml _bootstrap/k8s/ingress/
           cp k8s/rabbitmq/rabbitmq.yaml _bootstrap/k8s/rabbitmq.yaml
 
+          # Secret manifests
           cat > _bootstrap/k8s/config/secret-bootstrap.yaml <<EOF
           apiVersion: v1
           kind: Secret
@@ -68,7 +71,7 @@ jobs:
           apiVersion: v1
           kind: Secret
           metadata:
-            name: app-secrets
+            name: db-app-secrets
             namespace: egovernment-db
           type: Opaque
           stringData:
@@ -80,6 +83,7 @@ jobs:
             AuditDb__Password: ${{ secrets.POSTGRES_PASSWORD }}
           EOF
 
+          # PVC for uploaded documents
           cat > _bootstrap/k8s/storage/document-uploads-shared.yaml <<'EOF'
           apiVersion: v1
           kind: PersistentVolumeClaim
@@ -94,6 +98,7 @@ jobs:
                 storage: 5Gi
           EOF
 
+          # Replace environment + ingress host
           sed -i "s/ASPNETCORE_ENVIRONMENT: Development/ASPNETCORE_ENVIRONMENT: Production/" _bootstrap/k8s/config/configmap-app.yaml
           sed -i "s|egovernment.local|${INGRESS_HOST}|g" _bootstrap/k8s/ingress/ingress.yaml
 
@@ -109,10 +114,26 @@ jobs:
               echo "Kubernetes API not ready (attempt $attempt). Retrying in 10s..."
               sleep 10
             done
-
             echo "Kubernetes API did not become ready in time." >&2
             kubectl --request-timeout=30s version --short >&2 || true
+            kubectl --request-timeout=30s cluster-info >&2 || true
+            kubectl get nodes -o wide >&2 || true
+            exit 1
+          }
+
+          wait_for_cluster_usable() {
+            for attempt in {1..30}; do
+              if kubectl --request-timeout=30s wait --for=condition=Ready node --all --timeout=30s >/dev/null 2>&1 && \
+                 kubectl --request-timeout=30s get pods -n kube-system >/dev/null 2>&1; then
+                return 0
+              fi
+              echo "Cluster not yet usable (attempt $attempt). Retrying in 10s..."
+              sleep 10
+            done
+
+            echo "Cluster API responded but cluster did not become usable in time." >&2
             kubectl --request-timeout=30s get nodes -o wide >&2 || true
+            kubectl --request-timeout=30s get pods -n kube-system -o wide >&2 || true
             exit 1
           }
 
@@ -124,7 +145,6 @@ jobs:
               if kubectl --request-timeout=60s apply -f "$target"; then
                 return 0
               fi
-
               echo "Apply failed for $label (attempt $attempt). Retrying in 15s..."
               sleep 15
               wait_for_api
@@ -134,15 +154,22 @@ jobs:
             exit 1
           }
 
+          # Namespaces required for bootstrap
           for namespace in egovernment-db egovernment messaging monitoring; do
             success=0
             for attempt in {1..20}; do
-              if kubectl --request-timeout=60s create namespace "$namespace" >/dev/null 2>&1 || \
+              if kubectl --request-timeout=60s create namespace "$namespace" >/dev/null 2>&1 ||
                  kubectl --request-timeout=60s get namespace "$namespace" >/dev/null 2>&1; then
                 success=1
-                wait_for_api
                 break
               fi
+
+              if [[ "$attempt" -eq 1 ]]; then
+                echo "First failure details for namespace $namespace:" >&2
+                kubectl --request-timeout=60s create namespace "$namespace" >&2 || true
+                kubectl --request-timeout=60s get namespace "$namespace" >&2 || true
+              fi
+
               echo "Namespace create failed for $namespace (attempt $attempt). Retrying in 10s..."
               sleep 10
             done
@@ -154,11 +181,19 @@ jobs:
           done
 
           wait_for_api
+          wait_for_cluster_usable
+
+          echo "Cluster access diagnostics:" >&2
+          kubectl config current-context >&2 || true
+          kubectl --request-timeout=30s cluster-info >&2 || true
+          kubectl --request-timeout=30s auth can-i create namespaces >&2 || true
+          kubectl --request-timeout=30s auth can-i list namespaces >&2 || true
+
           apply_with_retry configmap _bootstrap/k8s/config/configmap-app.yaml
-          apply_with_retry secret-bootstrap _bootstrap/k8s/config/secret-bootstrap.yaml
+          apply_with_retry secrets _bootstrap/k8s/config/secret-bootstrap.yaml
           apply_with_retry postgres _bootstrap/k8s/postgres/
           apply_with_retry rabbitmq _bootstrap/k8s/rabbitmq.yaml
-          apply_with_retry document-uploads-shared _bootstrap/k8s/storage/document-uploads-shared.yaml
+          apply_with_retry storage _bootstrap/k8s/storage/document-uploads-shared.yaml
           apply_with_retry ingress _bootstrap/k8s/ingress/ingress.yaml
 
       - name: Show bootstrap status
