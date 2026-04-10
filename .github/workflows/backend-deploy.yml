@@ -186,15 +186,17 @@ jobs:
           set -euo pipefail
 
           wait_for_api() {
-            for attempt in {1..30}; do
+            for attempt in {1..60}; do
               if kubectl --request-timeout=30s get --raw='/readyz' >/dev/null 2>&1; then
                 return 0
               fi
-              echo "Kubernetes API not ready (attempt $attempt). Retrying in 5s..."
-              sleep 5
+              echo "Kubernetes API not ready (attempt $attempt). Retrying in 10s..."
+              sleep 10
             done
 
             echo "Kubernetes API did not become ready in time." >&2
+            kubectl --request-timeout=30s version --short >&2 || true
+            kubectl --request-timeout=30s get nodes -o wide >&2 || true
             exit 1
           }
 
@@ -247,15 +249,17 @@ jobs:
           set -euo pipefail
 
           wait_for_api() {
-            for attempt in {1..30}; do
+            for attempt in {1..60}; do
               if kubectl --request-timeout=30s get --raw='/readyz' >/dev/null 2>&1; then
                 return 0
               fi
-              echo "Kubernetes API not ready (attempt $attempt). Retrying in 5s..."
-              sleep 5
+              echo "Kubernetes API not ready (attempt $attempt). Retrying in 10s..."
+              sleep 10
             done
 
             echo "Kubernetes API did not become ready in time." >&2
+            kubectl --request-timeout=30s version --short >&2 || true
+            kubectl --request-timeout=30s get nodes -o wide >&2 || true
             exit 1
           }
 
