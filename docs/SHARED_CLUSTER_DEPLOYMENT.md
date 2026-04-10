@@ -203,3 +203,48 @@ Colleagues should only need:
 - A valid user account in the app.
 
 They should not need Docker, Minikube, or local source code.
+
+## Production-Style Version
+
+What this repo does today is acceptable for a shared demo cluster, but a production deployment would usually look different.
+
+### Demo Flow In This Repo
+
+1. A single OCI VM hosts the Kubernetes control plane and workloads.
+2. GitHub Actions deploys to that cluster using a kubeconfig secret.
+3. The Kubernetes API is reachable from the CI runner during deployment.
+4. Namespaces, bootstrap resources, and app workloads are applied in pipeline steps.
+5. Ingress is exposed through the public IP or a simple public hostname.
+
+### Production Flow I Would Use Instead
+
+1. Provision infrastructure with Terraform or another IaC tool.
+2. Use a managed Kubernetes service or a private cluster with controlled access.
+3. Run GitHub Actions on a self-hosted runner inside the same network as the cluster.
+4. Keep the Kubernetes API private; do not expose `6443` to the public internet.
+5. Store secrets in a managed secret store and sync them into the cluster.
+6. Apply cluster add-ons and namespaces through a hardened bootstrap job, then promote app changes separately.
+7. Use DNS, TLS, and ingress managed through a stable environment-specific configuration.
+
+### Exact Changes From The Current Flow
+
+- Replace the public GitHub-hosted deployment path with a self-hosted runner.
+- Remove the need for `KUBE_CONFIG_B64` to point at a public endpoint.
+- Close public `6443` access after bootstrap.
+- Move OCI networking setup into IaC instead of manual console steps.
+- Split bootstrap from app deployment more strictly, so app releases do not depend on infrastructure warm-up.
+- Replace the ad hoc bootstrap secrets flow with managed secret injection.
+
+### What Stays The Same
+
+- Namespace-based separation between app, database, and messaging resources.
+- Frontend and backend deploy separation.
+- Ingress-based routing to the app.
+- Health checks and rollout verification.
+
+### Recommended Next Step If You Want Production Parity
+
+1. Add Terraform for OCI networking and the VM or cluster.
+2. Move CI to a self-hosted runner in the same private network.
+3. Stop exposing the Kubernetes API publicly.
+4. Replace the current bootstrap secret values with a managed secret workflow.
