@@ -99,7 +99,20 @@ jobs:
 
       - name: Apply bootstrap resources
         run: |
-          kubectl apply -f k8s/namespaces/
+          set -euo pipefail
+
+          for attempt in {1..10}; do
+            if kubectl apply --validate=false -f k8s/namespaces/; then
+              break
+            fi
+            if [[ "$attempt" -eq 10 ]]; then
+              echo "Failed to apply namespaces after 10 attempts." >&2
+              exit 1
+            fi
+            echo "Namespace apply failed (attempt $attempt). Retrying in 10s..."
+            sleep 10
+          done
+
           kubectl apply -f _bootstrap/k8s/config/configmap-app.yaml
           kubectl apply -f _bootstrap/k8s/config/secret-bootstrap.yaml
           kubectl apply -f _bootstrap/k8s/postgres/
