@@ -79,10 +79,15 @@ runs:
               echo "TCP probe could not reach ${api_host}:${api_port}."
             fi
 
-            if curl -kfsS --connect-timeout 10 --max-time 20 "${api_server%/}/readyz" >/dev/null 2>&1; then
-              echo "curl probe reached API endpoint (TLS verification skipped for probe only)."
+            http_code="$(curl -ksS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 "${api_server%/}/readyz" || true)"
+            if [[ "$http_code" == "200" ]]; then
+              echo "HTTP probe reached /readyz with status 200."
+            elif [[ "$http_code" == "401" || "$http_code" == "403" ]]; then
+              echo "HTTP probe reached API endpoint (status ${http_code}, auth required)."
+            elif [[ "$http_code" == "000" || -z "$http_code" ]]; then
+              echo "HTTP probe did not get a response from API endpoint yet."
             else
-              echo "curl probe could not reach API endpoint yet."
+              echo "HTTP probe reached API endpoint with status ${http_code}."
             fi
           fi
 
