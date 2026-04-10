@@ -76,6 +76,51 @@ Your cluster must already have:
 - Read/write access to GitHub Container Registry.
 - A Kubernetes kubeconfig stored as a GitHub secret for CI deployment.
 
+## What To Prepare While The Instance Boots
+
+Use this checklist to finish everything except the final deploy:
+
+1. Prepare the GitHub repository secrets.
+	- `KUBE_CONFIG_B64`
+	- `POSTGRES_PASSWORD`
+	- `JWT_SECRET_KEY`
+	- `ADMIN_EMAIL`
+	- `ADMIN_PASSWORD`
+	- `ADMIN_FULLNAME`
+	- `RABBITMQ_DEFAULT_USER`
+	- `RABBITMQ_DEFAULT_PASS`
+	- `INGRESS_HOST`
+
+2. Prepare the OCI networking rules.
+	- Public subnet with public IPv4 enabled.
+	- Route table with `0.0.0.0/0 -> Internet Gateway`.
+	- Ingress TCP 22 restricted to your current IP /32.
+	- Ingress TCP 80 and 443 allowed for public access.
+	- Ingress TCP 6443 only if GitHub-hosted Actions must reach the cluster API.
+
+3. Prepare the cluster endpoint kubeconfig.
+	- Use a kubeconfig that embeds cert data instead of local file paths.
+	- Generate it from a reachable cluster with:
+
+```bash
+kubectl config view --raw --flatten | base64 -w 0
+```
+
+4. Prepare the deployment order.
+	- Run `preflight-check.yml` first.
+	- Run `cluster-bootstrap.yml` only if the cluster is brand new.
+	- Run `backend-deploy.yml`.
+	- Run `frontend-deploy.yml`.
+
+5. Prepare the verification commands.
+
+```bash
+kubectl get pods -n egovernment
+kubectl get pods -n egovernment-db
+kubectl get pods -n messaging
+kubectl get ingress -n egovernment
+```
+
 ## GitHub Secrets Needed
 
 Create these repository secrets:
