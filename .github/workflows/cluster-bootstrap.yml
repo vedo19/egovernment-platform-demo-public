@@ -101,12 +101,44 @@ jobs:
         run: |
           set -euo pipefail
 
+          wait_for_api() {
+            for attempt in {1..30}; do
+              if kubectl --request-timeout=30s get --raw='/readyz' >/dev/null 2>&1; then
+                return 0
+              fi
+              echo "Kubernetes API not ready (attempt $attempt). Retrying in 5s..."
+              sleep 5
+            done
+
+            echo "Kubernetes API did not become ready in time." >&2
+            exit 1
+          }
+
+          apply_with_retry() {
+            local label="$1"
+            local target="$2"
+
+            for attempt in {1..10}; do
+              if kubectl --request-timeout=60s apply -f "$target"; then
+                return 0
+              fi
+
+              echo "Apply failed for $label (attempt $attempt). Retrying in 15s..."
+              sleep 15
+              wait_for_api
+            done
+
+            echo "Failed to apply $label after 10 attempts." >&2
+            exit 1
+          }
+
           for namespace in egovernment-db egovernment messaging monitoring; do
             success=0
             for attempt in {1..20}; do
-              if kubectl --request-timeout=20s create namespace "$namespace" >/dev/null 2>&1 || \
-                 kubectl --request-timeout=20s get namespace "$namespace" >/dev/null 2>&1; then
+              if kubectl --request-timeout=60s create namespace "$namespace" >/dev/null 2>&1 || \
+                 kubectl --request-timeout=60s get namespace "$namespace" >/dev/null 2>&1; then
                 success=1
+                wait_for_api
                 break
               fi
               echo "Namespace create failed for $namespace (attempt $attempt). Retrying in 10s..."
@@ -119,12 +151,13 @@ jobs:
             fi
           done
 
-          kubectl apply -f _bootstrap/k8s/config/configmap-app.yaml
-          kubectl apply -f _bootstrap/k8s/config/secret-bootstrap.yaml
-          kubectl apply -f _bootstrap/k8s/postgres/
-          kubectl apply -f _bootstrap/k8s/rabbitmq.yaml
-          kubectl apply -f _bootstrap/k8s/storage/document-uploads-shared.yaml
-          kubectl apply -f _bootstrap/k8s/ingress/ingress.yaml
+          wait_for_api
+          apply_with_retry configmap _bootstrap/k8s/config/configmap-app.yaml
+          apply_with_retry secret-bootstrap _bootstrap/k8s/config/secret-bootstrap.yaml
+          apply_with_retry postgres _bootstrap/k8s/postgres/
+          apply_with_retry rabbitmq _bootstrap/k8s/rabbitmq.yaml
+          apply_with_retry document-uploads-shared _bootstrap/k8s/storage/document-uploads-shared.yaml
+          apply_with_retry ingress _bootstrap/k8s/ingress/ingress.yaml
 
       - name: Show bootstrap status
         run: |
