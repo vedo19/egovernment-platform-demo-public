@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { authApi, citizenApi, serviceRequestApi, documentApi } from '../api/services';
+import { authApi, serviceRequestApi, documentApi } from '../api/services';
 
 const STATUS_COLORS = {
   Pending: '#f59e0b',
@@ -17,12 +16,59 @@ const DOC_STATUSES = ['Pending', 'Processing', 'Ready', 'Rejected', 'Collected']
 const PAGE_SIZE = 8;
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
   const [tab, setTab] = useState('requests');
+  const [requestCount, setRequestCount] = useState(0);
+  const [documentCount, setDocumentCount] = useState(0);
+  const [userCount, setUserCount] = useState(0);
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
+
+  const loadSummary = async () => {
+    try {
+      const [requestsRes, documentsRes, usersRes] = await Promise.all([
+        serviceRequestApi.getAll(),
+        documentApi.getAll(),
+        authApi.users(),
+      ]);
+
+      setRequestCount((requestsRes.data || []).length);
+      setDocumentCount((documentsRes.data || []).length);
+      setUserCount((usersRes.data || []).length);
+    } catch {
+      setRequestCount(0);
+      setDocumentCount(0);
+      setUserCount(0);
+    }
+  };
 
   return (
-    <div>
-      <h1>Admin Dashboard</h1>
+    <div className="dashboard-page admin-dashboard">
+      <div className="page-hero">
+        <div>
+          <h1>Admin Dashboard</h1>
+          <p className="subtitle">
+            Manage service requests, document workflows, and user access across the platform.
+          </p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="card stat-card">
+          <span className="stat-label">Service Requests</span>
+          <strong className="stat-value">{requestCount}</strong>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-label">Documents</span>
+          <strong className="stat-value">{documentCount}</strong>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-label">Users</span>
+          <strong className="stat-value">{userCount}</strong>
+        </div>
+      </div>
+
       <div className="tabs">
         <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
           Service Requests
@@ -34,21 +80,23 @@ export default function AdminDashboard() {
           Users
         </button>
       </div>
-      {tab === 'requests' && <RequestsTab />}
-      {tab === 'documents' && <DocumentsTab />}
-      {tab === 'users' && <UsersTab />}
+
+      <div className="dashboard-section">
+        {tab === 'requests' && <RequestsTab onRefreshSummary={loadSummary} />}
+        {tab === 'documents' && <DocumentsTab onRefreshSummary={loadSummary} />}
+        {tab === 'users' && <UsersTab onRefreshSummary={loadSummary} />}
+      </div>
     </div>
   );
 }
 
-function RequestsTab() {
+function RequestsTab({ onRefreshSummary }) {
   const [requests, setRequests] = useState([]);
   const [officers, setOfficers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  // Track pending (unsaved) changes per row: { [id]: { status?, officerId? } }
   const [pending, setPending] = useState({});
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
@@ -56,15 +104,18 @@ function RequestsTab() {
   useEffect(() => {
     load();
     loadOfficers();
+    setPage(1);
   }, [statusFilter]);
 
   const load = async () => {
     setLoading(true);
     try {
       const { data } = await serviceRequestApi.getAll(statusFilter || undefined);
-      setRequests(data);
+      setRequests(data || []);
       setPending({});
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -72,19 +123,27 @@ function RequestsTab() {
   const loadOfficers = async () => {
     try {
       const { data } = await authApi.users();
-      setOfficers(data.filter((u) => u.role === 'Officer'));
-    } catch { /* empty */ }
+      setOfficers((data || []).filter((u) => u.role === 'Officer'));
+    } catch {
+      /* empty */
+    }
   };
 
   const setPendingField = (id, field, value) => {
     setPending((p) => ({ ...p, [id]: { ...p[id], [field]: value } }));
-    setSaved((s) => { const n = { ...s }; delete n[id]; return n; });
+    setSaved((s) => {
+      const n = { ...s };
+      delete n[id];
+      return n;
+    });
   };
 
   const handleSave = async (r) => {
     const changes = pending[r.id];
     if (!changes) return;
+
     setSaving((s) => ({ ...s, [r.id]: true }));
+
     try {
       if (changes.status && changes.status !== r.status) {
         await serviceRequestApi.updateStatus(r.id, { status: changes.status });
@@ -92,44 +151,79 @@ function RequestsTab() {
       if (changes.officerId) {
         await serviceRequestApi.assignOfficer(r.id, changes.officerId);
       }
+
       setSaved((s) => ({ ...s, [r.id]: true }));
-      setPending((p) => { const n = { ...p }; delete n[r.id]; return n; });
+      setPending((p) => {
+        const n = { ...p };
+        delete n[r.id];
+        return n;
+      });
+
       await load();
-    } catch { /* empty */ } finally {
+      onRefreshSummary?.();
+    } catch {
+      /* empty */
+    } finally {
       setSaving((s) => ({ ...s, [r.id]: false }));
     }
   };
 
   const handleChange = (id) => {
-    setSaved((s) => { const n = { ...s }; delete n[id]; return n; });
+    setSaved((s) => {
+      const n = { ...s };
+      delete n[id];
+      return n;
+    });
   };
 
   const filtered = requests.filter((r) => {
     const q = search.toLowerCase();
-    return !q || r.title.toLowerCase().includes(q) || r.type.toLowerCase().includes(q) || r.citizenUserId.toLowerCase().includes(q);
+    const title = (r.title || '').toLowerCase();
+    const type = (r.type || '').toLowerCase();
+    const citizenId = (r.citizenUserId || '').toLowerCase();
+
+    return !q || title.includes(q) || type.includes(q) || citizenId.includes(q);
   });
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div>
+    <div className="card">
       <div className="section-header">
-        <h2>All Service Requests</h2>
+        <div>
+          <h2>All Service Requests</h2>
+          <p className="subtitle">Review requests, update their status, and assign them to officers.</p>
+        </div>
+
         <div className="header-actions">
-          <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <input
+            className="search-input"
+            placeholder="Search requests..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
             {REQUEST_STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>
       </div>
+
       {loading ? (
         <p className="loading-text">Loading requests...</p>
       ) : filtered.length === 0 ? (
-        <p className="empty">{search ? 'No matching requests.' : 'No requests found.'}</p>
+        <div className="empty-state-card">
+          <p className="empty">{search ? 'No matching requests.' : 'No requests found.'}</p>
+        </div>
       ) : (
         <>
           <table className="data-table">
@@ -148,20 +242,25 @@ function RequestsTab() {
                 const hasPending = !!pending[r.id];
                 const isSaved = !!saved[r.id];
                 const isSaving = !!saving[r.id];
+
                 return (
                   <tr key={r.id}>
-                    <td>{r.type}</td>
-                    <td className="desc-cell">{r.title}</td>
-                    <td className="id-cell" title={r.citizenUserId}>{r.citizenUserId}</td>
+                    <td>{r.type || '—'}</td>
+                    <td className="desc-cell">{r.title || '—'}</td>
+                    <td className="id-cell" title={r.citizenUserId}>
+                      {r.citizenUserId || '—'}
+                    </td>
                     <td>
                       <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
-                        {r.status}
+                        {r.status || 'Unknown'}
                       </span>
                     </td>
-                    <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                    <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                     <td className="actions-cell">
                       {isSaved ? (
-                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(r.id)}>Change</button>
+                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(r.id)}>
+                          Change
+                        </button>
                       ) : (
                         <>
                           <select
@@ -169,20 +268,32 @@ function RequestsTab() {
                             onChange={(e) => setPendingField(r.id, 'status', e.target.value)}
                           >
                             {REQUEST_STATUSES.map((s) => (
-                              <option key={s} value={s}>{s}</option>
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
                             ))}
                           </select>
+
                           <select
                             value={pending[r.id]?.officerId || r.assignedOfficerId || ''}
                             onChange={(e) => setPendingField(r.id, 'officerId', e.target.value)}
                           >
-                            <option value="" disabled>Assign Officer</option>
+                            <option value="" disabled>
+                              Assign Officer
+                            </option>
                             {officers.map((o) => (
-                              <option key={o.id} value={o.id}>{o.fullName}</option>
+                              <option key={o.id} value={o.id}>
+                                {o.fullName}
+                              </option>
                             ))}
                           </select>
+
                           {hasPending && (
-                            <button className="btn btn-sm btn-success" onClick={() => handleSave(r)} disabled={isSaving}>
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => handleSave(r)}
+                              disabled={isSaving}
+                            >
                               {isSaving ? 'Saving...' : 'Save'}
                             </button>
                           )}
@@ -194,11 +305,18 @@ function RequestsTab() {
               })}
             </tbody>
           </table>
+
           {totalPages > 1 && (
             <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {safePage} of {totalPages}
+              </span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                Next
+              </button>
             </div>
           )}
         </>
@@ -207,7 +325,7 @@ function RequestsTab() {
   );
 }
 
-function DocumentsTab() {
+function DocumentsTab({ onRefreshSummary }) {
   const [documents, setDocuments] = useState([]);
   const [officers, setOfficers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -221,6 +339,7 @@ function DocumentsTab() {
   useEffect(() => {
     load();
     loadOfficers();
+    setPage(1);
   }, [statusFilter]);
 
   const load = async () => {
@@ -228,9 +347,11 @@ function DocumentsTab() {
     try {
       const params = statusFilter ? { status: statusFilter } : {};
       const { data } = await documentApi.getAll(params);
-      setDocuments(data);
+      setDocuments(data || []);
       setPending({});
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -238,19 +359,27 @@ function DocumentsTab() {
   const loadOfficers = async () => {
     try {
       const { data } = await authApi.users();
-      setOfficers(data.filter((u) => u.role === 'Officer'));
-    } catch { /* empty */ }
+      setOfficers((data || []).filter((u) => u.role === 'Officer'));
+    } catch {
+      /* empty */
+    }
   };
 
   const setPendingField = (id, field, value) => {
     setPending((p) => ({ ...p, [id]: { ...p[id], [field]: value } }));
-    setSaved((s) => { const n = { ...s }; delete n[id]; return n; });
+    setSaved((s) => {
+      const n = { ...s };
+      delete n[id];
+      return n;
+    });
   };
 
   const handleSave = async (d) => {
     const changes = pending[d.id];
     if (!changes) return;
+
     setSaving((s) => ({ ...s, [d.id]: true }));
+
     try {
       if (changes.status && changes.status !== d.status) {
         await documentApi.updateStatus(d.id, { status: changes.status });
@@ -258,45 +387,79 @@ function DocumentsTab() {
       if (changes.officerId) {
         await documentApi.assignOfficer(d.id, changes.officerId);
       }
+
       setSaved((s) => ({ ...s, [d.id]: true }));
-      setPending((p) => { const n = { ...p }; delete n[d.id]; return n; });
+      setPending((p) => {
+        const n = { ...p };
+        delete n[d.id];
+        return n;
+      });
+
       await load();
-    } catch { /* empty */ } finally {
+      onRefreshSummary?.();
+    } catch {
+      /* empty */
+    } finally {
       setSaving((s) => ({ ...s, [d.id]: false }));
     }
   };
 
   const handleChange = (id) => {
-    setSaved((s) => { const n = { ...s }; delete n[id]; return n; });
+    setSaved((s) => {
+      const n = { ...s };
+      delete n[id];
+      return n;
+    });
   };
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = d.documentType.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
-    return !q || typeName.includes(q) || d.citizenUserId.toLowerCase().includes(q) || (d.referenceNumber || '').toLowerCase().includes(q);
+    const typeName = (d.documentType || '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const citizenId = (d.citizenUserId || '').toLowerCase();
+    const referenceNumber = (d.referenceNumber || '').toLowerCase();
+
+    return !q || typeName.includes(q) || citizenId.includes(q) || referenceNumber.includes(q);
   });
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div>
+    <div className="card">
       <div className="section-header">
-        <h2>All Documents</h2>
+        <div>
+          <h2>All Documents</h2>
+          <p className="subtitle">Manage document status, reference tracking, and officer assignment.</p>
+        </div>
+
         <div className="header-actions">
-          <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <input
+            className="search-input"
+            placeholder="Search documents..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
             {DOC_STATUSES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>
       </div>
+
       {loading ? (
         <p className="loading-text">Loading documents...</p>
       ) : filtered.length === 0 ? (
-        <p className="empty">{search ? 'No matching documents.' : 'No documents found.'}</p>
+        <div className="empty-state-card">
+          <p className="empty">{search ? 'No matching documents.' : 'No documents found.'}</p>
+        </div>
       ) : (
         <>
           <table className="data-table">
@@ -315,20 +478,25 @@ function DocumentsTab() {
                 const hasPending = !!pending[d.id];
                 const isSaved = !!saved[d.id];
                 const isSaving = !!saving[d.id];
+
                 return (
                   <tr key={d.id}>
-                    <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
+                    <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
                     <td>
                       <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
-                        {d.status}
+                        {d.status || 'Unknown'}
                       </span>
                     </td>
                     <td>{d.referenceNumber || '—'}</td>
-                    <td className="id-cell" title={d.citizenUserId}>{d.citizenUserId}</td>
-                    <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                    <td className="id-cell" title={d.citizenUserId}>
+                      {d.citizenUserId || '—'}
+                    </td>
+                    <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
                     <td className="actions-cell">
                       {isSaved ? (
-                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(d.id)}>Change</button>
+                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(d.id)}>
+                          Change
+                        </button>
                       ) : (
                         <>
                           <select
@@ -336,20 +504,32 @@ function DocumentsTab() {
                             onChange={(e) => setPendingField(d.id, 'status', e.target.value)}
                           >
                             {DOC_STATUSES.map((s) => (
-                              <option key={s} value={s}>{s}</option>
+                              <option key={s} value={s}>
+                                {s}
+                              </option>
                             ))}
                           </select>
+
                           <select
                             value={pending[d.id]?.officerId || d.processedByOfficerId || ''}
                             onChange={(e) => setPendingField(d.id, 'officerId', e.target.value)}
                           >
-                            <option value="" disabled>Assign Officer</option>
+                            <option value="" disabled>
+                              Assign Officer
+                            </option>
                             {officers.map((o) => (
-                              <option key={o.id} value={o.id}>{o.fullName}</option>
+                              <option key={o.id} value={o.id}>
+                                {o.fullName}
+                              </option>
                             ))}
                           </select>
+
                           {hasPending && (
-                            <button className="btn btn-sm btn-success" onClick={() => handleSave(d)} disabled={isSaving}>
+                            <button
+                              className="btn btn-sm btn-success"
+                              onClick={() => handleSave(d)}
+                              disabled={isSaving}
+                            >
                               {isSaving ? 'Saving...' : 'Save'}
                             </button>
                           )}
@@ -361,11 +541,18 @@ function DocumentsTab() {
               })}
             </tbody>
           </table>
+
           {totalPages > 1 && (
             <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {safePage} of {totalPages}
+              </span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                Next
+              </button>
             </div>
           )}
         </>
@@ -374,7 +561,7 @@ function DocumentsTab() {
   );
 }
 
-function UsersTab() {
+function UsersTab({ onRefreshSummary }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -388,8 +575,10 @@ function UsersTab() {
     setLoading(true);
     try {
       const { data } = await authApi.users();
-      setUsers(data);
-    } catch { /* empty */ } finally {
+      setUsers(data || []);
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -398,27 +587,50 @@ function UsersTab() {
     try {
       await authApi.updateRole(userId, newRole);
       await loadUsers();
-    } catch { /* empty */ }
+      onRefreshSummary?.();
+    } catch {
+      /* empty */
+    }
   };
 
   const filtered = users.filter((u) => {
     const q = search.toLowerCase();
-    return !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q);
+    const fullName = (u.fullName || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const role = (u.role || '').toLowerCase();
+
+    return !q || fullName.includes(q) || email.includes(q) || role.includes(q);
   });
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   return (
-    <div>
+    <div className="card">
       <div className="section-header">
-        <h2>All Users</h2>
-        <input className="search-input" placeholder="Search users..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+        <div>
+          <h2>All Users</h2>
+          <p className="subtitle">Search user accounts and manage platform roles.</p>
+        </div>
+
+        <input
+          className="search-input"
+          placeholder="Search users..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
       </div>
+
       {loading ? (
         <p className="loading-text">Loading users...</p>
       ) : filtered.length === 0 ? (
-        <p className="empty">{search ? 'No matching users.' : 'No users found.'}</p>
+        <div className="empty-state-card">
+          <p className="empty">{search ? 'No matching users.' : 'No users found.'}</p>
+        </div>
       ) : (
         <>
           <table className="data-table">
@@ -433,18 +645,21 @@ function UsersTab() {
             <tbody>
               {paged.map((u) => (
                 <tr key={u.id}>
-                  <td>{u.fullName}</td>
-                  <td>{u.email}</td>
+                  <td>{u.fullName || '—'}</td>
+                  <td>{u.email || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: u.role === 'Admin' ? '#8b5cf6' : u.role === 'Officer' ? '#3b82f6' : '#10b981' }}>
-                      {u.role}
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor:
+                          u.role === 'Admin' ? '#8b5cf6' : u.role === 'Officer' ? '#3b82f6' : '#10b981',
+                      }}
+                    >
+                      {u.role || 'Unknown'}
                     </span>
                   </td>
                   <td>
-                    <select
-                      value={u.role}
-                      onChange={(e) => changeRole(u.id, e.target.value)}
-                    >
+                    <select value={u.role} onChange={(e) => changeRole(u.id, e.target.value)}>
                       <option value="Citizen">Citizen</option>
                       <option value="Officer">Officer</option>
                       <option value="Admin">Admin</option>
@@ -454,11 +669,18 @@ function UsersTab() {
               ))}
             </tbody>
           </table>
+
           {totalPages > 1 && (
             <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {safePage} of {totalPages}
+              </span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                Next
+              </button>
             </div>
           )}
         </>
