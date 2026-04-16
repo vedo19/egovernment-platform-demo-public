@@ -1,4 +1,4 @@
-.PHONY: help setup up down logs restart clean rebuild test
+.PHONY: help setup up down logs restart clean rebuild test dev-local dev-remote-db
 
 # Colors
 BLUE := \033[0;34m
@@ -30,6 +30,8 @@ help: ## Show this help message
 	@echo "  make test         - Run all .NET tests"
 	@echo "  make db-connect   - Connect to auth database (psql)"
 	@echo "  make health       - Check service health"
+	@echo "  make dev-local    - Start backend stack with local Docker DBs"
+	@echo "  make dev-remote-db- Start backend stack with remote DBs"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make logs-citizen_service        # View citizen service logs"
@@ -123,6 +125,12 @@ restart-frontend: ## Restart frontend
 ## Development targets
 test: ## Run all .NET tests
 	dotnet test
+
+dev-local: ## Start local backend stack with local Docker DBs
+	./scripts/dev-local.sh
+
+dev-remote-db: ## Start local backend stack with remote DBs using .env.remote
+	./scripts/dev-remote-db.sh
 
 format: ## Format all code with dotnet format
 	dotnet format
