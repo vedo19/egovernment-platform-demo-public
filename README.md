@@ -4,6 +4,33 @@ A full-stack e-government system that lets citizens apply for permits, request o
 
 ---
 
+## 🚀 For Developers: Quick Start
+
+**New to the project?** Get your development environment running in **under 2 minutes**:
+
+```bash
+make setup
+```
+
+That's it! All services, databases, and migrations ready to go.
+
+**First time?** See the guides tailored for your needs:
+- **📋 [QUICKSTART.md](QUICKSTART.md)** — One-page cheat sheet (command reference + common issues)
+- **📖 [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)** — Complete setup guide (prerequisites, troubleshooting, all options)
+- **📚 [Makefile](Makefile)** — All available automation commands (`make help` to see them)
+
+**Common commands:**
+```bash
+make setup          # Initialize everything
+make up             # Start services
+make down           # Stop services  
+make logs           # View service logs
+make restart-auth   # Restart individual service
+make test           # Run tests
+```
+
+---
+
 ## What's Inside
 
 | Component | Technology | Port |
