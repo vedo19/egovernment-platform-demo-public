@@ -1,9 +1,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY ["DocumentService.csproj", "."]
-RUN dotnet restore
-COPY . .
-RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+COPY src/DocumentService/DocumentService.csproj src/DocumentService/
+RUN dotnet restore src/DocumentService/DocumentService.csproj
+COPY src/DocumentService/ src/DocumentService/
+RUN dotnet publish src/DocumentService/DocumentService.csproj -c Release -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ENV ASPNETCORE_URLS=http://+:8080 \
