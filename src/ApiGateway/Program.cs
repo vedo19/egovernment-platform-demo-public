@@ -50,10 +50,10 @@ static Dictionary<string, string> BuildOcelotOverrides(IConfiguration config)
 {
     var overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-    ApplyServiceRouteOverride(overrides, config, "AuthService__Url", new[] { 0 });
-    ApplyServiceRouteOverride(overrides, config, "CitizenService__Url", new[] { 1, 2 });
-    ApplyServiceRouteOverride(overrides, config, "ServiceRequestService__Url", new[] { 3, 4 });
-    ApplyServiceRouteOverride(overrides, config, "DocumentService__Url", new[] { 5, 6 });
+    ApplyServiceRouteOverride(overrides, config, "AuthService:Url", new[] { 0 });
+    ApplyServiceRouteOverride(overrides, config, "CitizenService:Url", new[] { 1, 2 });
+    ApplyServiceRouteOverride(overrides, config, "ServiceRequestService:Url", new[] { 3, 4 });
+    ApplyServiceRouteOverride(overrides, config, "DocumentService:Url", new[] { 5, 6 });
 
     var publicBaseUrl = config["Gateway__BaseUrl"];
     if (!string.IsNullOrWhiteSpace(publicBaseUrl))
@@ -70,7 +70,8 @@ static void ApplyServiceRouteOverride(
     string endpointKey,
     IEnumerable<int> routeIndexes)
 {
-    var endpoint = config[endpointKey];
+    var endpoint = config[endpointKey]
+        ?? config[endpointKey.Replace(":", "__")];
     if (!TryParseEndpoint(endpoint, out var scheme, out var host, out var port))
     {
         return;
