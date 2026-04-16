@@ -20,8 +20,8 @@ services:
   # ───────────────────────────── Auth Service ──────────────────────────────
   auth_service:
     build:
-      context: ./src/AuthService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/AuthService/Dockerfile
     container_name: auth_service
     ports:
       - "5001:80"
@@ -66,8 +66,8 @@ services:
   # ──────────────────────────── Citizen Service ────────────────────────────
   citizen_service:
     build:
-      context: ./src/CitizenService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/CitizenService/Dockerfile
     container_name: citizen_service
     ports:
       - "5002:80"
@@ -108,8 +108,8 @@ services:
   # ─────────────────────── Service Request Service ─────────────────────────
   service_request_service:
     build:
-      context: ./src/ServiceRequestService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/ServiceRequestService/Dockerfile
     container_name: service_request_service
     ports:
       - "5003:80"
@@ -150,8 +150,8 @@ services:
   # ─────────────────────────── Document Service ────────────────────────────
   document_service:
     build:
-      context: ./src/DocumentService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/DocumentService/Dockerfile
     container_name: document_service
     ports:
       - "5004:80"
@@ -174,8 +174,8 @@ services:
   # ══════════════════════════════ API Gateway ══════════════════════════════
   api_gateway:
     build:
-      context: ./src/ApiGateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
     container_name: api_gateway
     ports:
       - "5050:80"
