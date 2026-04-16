@@ -1,7 +1,10 @@
 import axios from 'axios';
 
+const RENDER_GATEWAY_FALLBACK = 'https://api-gateway-xi3u.onrender.com';
+
 const API_BASE =
-  import.meta.env.VITE_API_URL || (window.location.port === '5173' ? 'http://localhost:5050' : '');
+  import.meta.env.VITE_API_URL ||
+  (window.location.port === '5173' ? 'http://localhost:5050' : RENDER_GATEWAY_FALLBACK);
 
 const client = axios.create({
   baseURL: API_BASE,
