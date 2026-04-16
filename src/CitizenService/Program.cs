@@ -9,20 +9,17 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var dbHost = builder.Configuration["CitizenDb:Host"];
+var dbPort = builder.Configuration["CitizenDb:Port"] ?? "5432";
+var dbName = builder.Configuration["CitizenDb:Database"] ?? "citizen_db";
+var dbUser = builder.Configuration["CitizenDb:Username"] ?? "postgres";
+var dbPassword = builder.Configuration["CitizenDb:Password"];
 
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    var dbHost = builder.Configuration["CitizenDb:Host"]
-        ?? throw new InvalidOperationException("Citizen DB host is not configured.");
-    var dbPort = builder.Configuration["CitizenDb:Port"] ?? "5432";
-    var dbName = builder.Configuration["CitizenDb:Database"] ?? "citizen_db";
-    var dbUser = builder.Configuration["CitizenDb:Username"] ?? "postgres";
-    var dbPassword = builder.Configuration["CitizenDb:Password"]
-        ?? throw new InvalidOperationException("Citizen DB password is not configured.");
-
-    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
-}
+var connectionString =
+    !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}"
+        : builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
 builder.Services.AddDbContext<CitizenDbContext>(options =>
     options.UseNpgsql(connectionString));

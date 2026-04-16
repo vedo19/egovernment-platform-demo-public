@@ -9,20 +9,17 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var dbHost = builder.Configuration["DocumentDb:Host"];
+var dbPort = builder.Configuration["DocumentDb:Port"] ?? "5432";
+var dbName = builder.Configuration["DocumentDb:Database"] ?? "document_db";
+var dbUser = builder.Configuration["DocumentDb:Username"] ?? "postgres";
+var dbPassword = builder.Configuration["DocumentDb:Password"];
 
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    var dbHost = builder.Configuration["DocumentDb:Host"]
-        ?? throw new InvalidOperationException("Document DB host is not configured.");
-    var dbPort = builder.Configuration["DocumentDb:Port"] ?? "5432";
-    var dbName = builder.Configuration["DocumentDb:Database"] ?? "document_db";
-    var dbUser = builder.Configuration["DocumentDb:Username"] ?? "postgres";
-    var dbPassword = builder.Configuration["DocumentDb:Password"]
-        ?? throw new InvalidOperationException("Document DB password is not configured.");
-
-    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
-}
+var connectionString =
+    !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}"
+        : builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
 builder.Services.AddDbContext<DocumentDbContext>(options =>
     options.UseNpgsql(connectionString));

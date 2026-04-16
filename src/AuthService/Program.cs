@@ -10,20 +10,17 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var dbHost = builder.Configuration["AuthDb:Host"];
+var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
+var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
+var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
+var dbPassword = builder.Configuration["AuthDb:Password"];
 
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    var dbHost = builder.Configuration["AuthDb:Host"]
-        ?? throw new InvalidOperationException("Auth DB host is not configured.");
-    var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
-    var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
-    var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
-    var dbPassword = builder.Configuration["AuthDb:Password"]
-        ?? throw new InvalidOperationException("Auth DB password is not configured.");
-
-    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
-}
+var connectionString =
+    !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}"
+        : builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(connectionString));
