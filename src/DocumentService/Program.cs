@@ -79,6 +79,12 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    app.Urls.Add($"http://0.0.0.0:{renderPort}");
+}
+
 // ---------- Auto-migrate on startup ----------
 using (var scope = app.Services.CreateScope())
 {

@@ -1,0 +1,185 @@
+services:
+  - type: web
+    name: auth-service
+    env: docker
+    dockerfilePath: src/AuthService/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: AuthDb__Host
+        fromDatabase:
+          name: auth-db
+          property: host
+      - key: AuthDb__Port
+        fromDatabase:
+          name: auth-db
+          property: port
+      - key: AuthDb__Database
+        fromDatabase:
+          name: auth-db
+          property: database
+      - key: AuthDb__Username
+        fromDatabase:
+          name: auth-db
+          property: user
+      - key: AuthDb__Password
+        fromDatabase:
+          name: auth-db
+          property: password
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: AuthService
+      - key: Jwt__Audience
+        value: EGovernmentPlatform
+      - key: Admin__Email
+        sync: false
+      - key: Admin__Password
+        sync: false
+      - key: Admin__FullName
+        value: System Administrator
+
+  - type: web
+    name: citizen-service
+    env: docker
+    dockerfilePath: src/CitizenService/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: CitizenDb__Host
+        fromDatabase:
+          name: citizen-db
+          property: host
+      - key: CitizenDb__Port
+        fromDatabase:
+          name: citizen-db
+          property: port
+      - key: CitizenDb__Database
+        fromDatabase:
+          name: citizen-db
+          property: database
+      - key: CitizenDb__Username
+        fromDatabase:
+          name: citizen-db
+          property: user
+      - key: CitizenDb__Password
+        fromDatabase:
+          name: citizen-db
+          property: password
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: AuthService
+      - key: Jwt__Audience
+        value: EGovernmentPlatform
+
+  - type: web
+    name: service-request-service
+    env: docker
+    dockerfilePath: src/ServiceRequestService/Dockerfile
+    dockerContext: src/ServiceRequestService
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: RequestDb__Host
+        fromDatabase:
+          name: request-db
+          property: host
+      - key: RequestDb__Port
+        fromDatabase:
+          name: request-db
+          property: port
+      - key: RequestDb__Database
+        fromDatabase:
+          name: request-db
+          property: database
+      - key: RequestDb__Username
+        fromDatabase:
+          name: request-db
+          property: user
+      - key: RequestDb__Password
+        fromDatabase:
+          name: request-db
+          property: password
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: AuthService
+      - key: Jwt__Audience
+        value: EGovernmentPlatform
+
+  - type: web
+    name: document-service
+    env: docker
+    dockerfilePath: src/DocumentService/Dockerfile
+    dockerContext: src/DocumentService
+    healthCheckPath: /healthz
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DocumentDb__Host
+        fromDatabase:
+          name: document-db
+          property: host
+      - key: DocumentDb__Port
+        fromDatabase:
+          name: document-db
+          property: port
+      - key: DocumentDb__Database
+        fromDatabase:
+          name: document-db
+          property: database
+      - key: DocumentDb__Username
+        fromDatabase:
+          name: document-db
+          property: user
+      - key: DocumentDb__Password
+        fromDatabase:
+          name: document-db
+          property: password
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: AuthService
+      - key: Jwt__Audience
+        value: EGovernmentPlatform
+
+  - type: web
+    name: api-gateway
+    env: docker
+    dockerfilePath: src/ApiGateway/Dockerfile
+    dockerContext: src/ApiGateway
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: AuthService__Url
+        value: http://auth-service:10000
+      - key: CitizenService__Url
+        value: http://citizen-service:10000
+      - key: ServiceRequestService__Url
+        value: http://service-request-service:10000
+      - key: DocumentService__Url
+        value: http://document-service:10000
+      - key: Cors__AllowedOrigins__0
+        sync: false
+
+  - type: web
+    name: frontend
+    env: docker
+    dockerfilePath: src/frontend/Dockerfile
+    dockerContext: src/frontend
+    envVars:
+      - key: VITE_API_URL
+        sync: false
+
+databases:
+  - name: auth-db
+  - name: citizen-db
+  - name: request-db
+  - name: document-db
