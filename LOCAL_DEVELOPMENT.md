@@ -167,9 +167,78 @@ docker-compose down
 docker-compose down -v
 ```
 
-## Local Development (No Docker)
+## Switching to Neon Cloud Database
 
-If you prefer to run services directly on your machine for faster iteration:
+Instead of running PostgreSQL in Docker locally, you can use Neon (hosted PostgreSQL) for development.
+
+### When to Use Neon
+- **Team development:** Everyone uses the same database, consistent test data
+- **Shared staging environment:** No local resource usage
+- **Always-on development:** Access from anywhere
+- **CI/CD integration:** Same endpoint for tests and deployments
+
+### How to Switch from Docker to Neon
+
+**1. Copy the Neon environment configuration:**
+
+```bash
+cp .env.neon .env.local
+```
+
+**2. Restart services (if running in Docker):**
+
+```bash
+docker-compose up -d
+# or
+make up
+```
+
+Services will now connect to Neon instead of local Docker databases.
+
+**3. Run migrations against Neon:**
+
+```bash
+./scripts/setup-dev.sh
+# or manually
+dotnet ef database update --project src/AuthService
+dotnet ef database update --project src/CitizenService
+dotnet ef database update --project src/ServiceRequestService
+dotnet ef database update --project src/DocumentService
+```
+
+### How to Switch Back to Docker
+
+**1. Restore the Docker environment configuration:**
+
+```bash
+cp .env.example .env.local
+```
+
+**2. Start Docker databases:**
+
+```bash
+docker-compose up -d
+make up
+```
+
+### Important Notes About Neon Setup
+
+- **Shared database:** All 4 services use the same `neondb` database on Neon
+- **SSL required:** Connection includes `SSL Mode=Require` for security
+- **Pooler endpoint:** Uses connection pooler (`-pooler.c-6.us-east-1.aws.neon.tech`) for optimal performance
+- **Team access:** Credentials shared in `.env.neon` — **don't commit this file with real passwords**
+
+### Adding Neon to .gitignore
+
+Since `.env.neon` contains database credentials, make sure it's ignored:
+
+```bash
+echo ".env.neon" >> .gitignore
+```
+
+Or add to deployment platforms (Render, Vercel, etc.) as environment variables directly.
+
+## Local Development (No Docker)
 
 ### 1. Start Only Databases
 

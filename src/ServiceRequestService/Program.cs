@@ -14,10 +14,11 @@ var dbPort = builder.Configuration["RequestDb:Port"] ?? "5432";
 var dbName = builder.Configuration["RequestDb:Database"] ?? "request_db";
 var dbUser = builder.Configuration["RequestDb:Username"] ?? "postgres";
 var dbPassword = builder.Configuration["RequestDb:Password"];
+var dbSslMode = builder.Configuration["RequestDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
 
 var connectionString =
     !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
-        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}"
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode={dbSslMode}"
         : builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
