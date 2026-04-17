@@ -1,11 +1,12 @@
 name: Frontend Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/frontend/**'
-      - 'k8s/services/frontend.yaml'
+  # Disabled until fully implemented
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'src/frontend/**'
+  #     - 'k8s/services/frontend.yaml'
   workflow_dispatch: {}
 
 permissions:
