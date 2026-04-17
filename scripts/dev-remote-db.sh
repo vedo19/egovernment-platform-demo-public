@@ -10,16 +10,67 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+load_env_file() {
+  local file="$1"
+  local line key value var
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+    if [[ "$line" == export[[:space:]]* ]]; then
+      line="${line#export }"
+    fi
+
+    [[ "$line" != *=* ]] && continue
+
+    key="${line%%=*}"
+    value="${line#*=}"
+
+    # Trim whitespace around key.
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+
+    # Expand ${VAR} references using already exported values.
+    while [[ "$value" =~ \$\{([A-Za-z_][A-Za-z0-9_]*)\} ]]; do
+      var="${BASH_REMATCH[1]}"
+      value="${value//\$\{$var\}/${!var:-}}"
+    done
+
+    export "$key=$value"
+  done < "$file"
+}
+
+load_env_file "$ENV_FILE"
 
 require_var() {
   local name="$1"
   if [[ -z "${!name:-}" ]]; then
     echo "Missing required variable: $name"
     exit 1
+  fi
+}
+
+validate_remote_host() {
+  local host="$1"
+  local label="$2"
+
+  # Render internal DB hostnames like dpg-xxxx are only reachable inside Render private network.
+  if [[ "$host" =~ ^dpg- ]] && [[ "$host" != *.* ]]; then
+    echo "Invalid $label host for local remote mode: '$host'"
+    echo "This looks like a Render INTERNAL hostname and is not resolvable from local Docker."
+    echo "Use the external/public Render Postgres hostname from the Render DB dashboard."
+    exit 1
+  fi
+
+  if command -v getent >/dev/null 2>&1; then
+    if ! getent ahosts "$host" >/dev/null 2>&1; then
+      echo "Cannot resolve $label host from this machine: '$host'"
+      echo "Check .env.remote and use a reachable external hostname."
+      exit 1
+    fi
   fi
 }
 
@@ -37,6 +88,11 @@ for var in \
   require_var "$var"
 done
 
+validate_remote_host "$AuthDb__Host" "AuthDb"
+validate_remote_host "$CitizenDb__Host" "CitizenDb"
+validate_remote_host "$RequestDb__Host" "RequestDb"
+validate_remote_host "$DocumentDb__Host" "DocumentDb"
+
 : "${AuthDb__SslMode:=Require}"
 : "${CitizenDb__SslMode:=Require}"
 : "${RequestDb__SslMode:=Require}"
@@ -51,6 +107,21 @@ done
 : "${Cors__AllowedOrigins__1:=http://localhost:5173}"
 
 cd "$ROOT_DIR"
+
+echo ""
+echo "============================================================"
+echo "Mode: REMOTE DBs"
+echo "Env file: $ENV_FILE"
+echo "Auth DB:     $AuthDb__Host:$AuthDb__Port/$AuthDb__Database (ssl=$AuthDb__SslMode)"
+echo "Citizen DB:  $CitizenDb__Host:$CitizenDb__Port/$CitizenDb__Database (ssl=$CitizenDb__SslMode)"
+echo "Request DB:  $RequestDb__Host:$RequestDb__Port/$RequestDb__Database (ssl=$RequestDb__SslMode)"
+echo "Document DB: $DocumentDb__Host:$DocumentDb__Port/$DocumentDb__Database (ssl=$DocumentDb__SslMode)"
+echo "Gateway routes:"
+echo "  AuthService:            $AuthService__Url"
+echo "  CitizenService:         $CitizenService__Url"
+echo "  ServiceRequestService:  $ServiceRequestService__Url"
+echo "  DocumentService:        $DocumentService__Url"
+echo "============================================================"
 
 echo "Starting backend stack with REMOTE databases (no local postgres containers)..."
 # --no-deps avoids bringing up local postgres containers due depends_on

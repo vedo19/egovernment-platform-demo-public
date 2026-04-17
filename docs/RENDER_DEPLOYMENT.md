@@ -55,6 +55,12 @@ Check:
 - api-gateway logs
 - auth-service/citizen-service/service-request-service/document-service health (`/healthz`)
 
+### Local `dev-remote-db` fails with `Name or service not known`
+
+This usually means `AuthDb__Host` (or another DB host) is set to a Render internal hostname like `dpg-...`.
+
+That hostname only resolves inside Render's private network. For local development, use the public/external Render Postgres hostname from the database dashboard.
+
 ### CORS error in browser
 
 Set `Cors__AllowedOrigins__0` on api-gateway exactly to the frontend URL (scheme + host).

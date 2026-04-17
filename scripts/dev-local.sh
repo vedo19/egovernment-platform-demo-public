@@ -4,11 +4,41 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${1:-$ROOT_DIR/.env.local}"
 
+load_env_file() {
+  local file="$1"
+  local line key value var
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "$line" || "$line" =~ ^[[:space:]]*# ]] && continue
+
+    if [[ "$line" == export[[:space:]]* ]]; then
+      line="${line#export }"
+    fi
+
+    [[ "$line" != *=* ]] && continue
+
+    key="${line%%=*}"
+    value="${line#*=}"
+
+    # Trim whitespace around key.
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+
+    # Expand ${VAR} references using already exported values.
+    while [[ "$value" =~ \$\{([A-Za-z_][A-Za-z0-9_]*)\} ]]; do
+      var="${BASH_REMATCH[1]}"
+      value="${value//\$\{$var\}/${!var:-}}"
+    done
+
+    export "$key=$value"
+  done < "$file"
+}
+
 if [[ -f "$ENV_FILE" ]]; then
-  set -a
-  # shellcheck disable=SC1090
-  source "$ENV_FILE"
-  set +a
+  load_env_file "$ENV_FILE"
 fi
 
 # Local development defaults (Dockerized PostgreSQL)
@@ -55,6 +85,21 @@ fi
 : "${Cors__AllowedOrigins__1:=http://localhost:5173}"
 
 cd "$ROOT_DIR"
+
+echo ""
+echo "============================================================"
+echo "Mode: LOCAL Docker DBs"
+echo "Env file: $ENV_FILE"
+echo "Auth DB:     $AuthDb__Host:$AuthDb__Port/$AuthDb__Database (ssl=$AuthDb__SslMode)"
+echo "Citizen DB:  $CitizenDb__Host:$CitizenDb__Port/$CitizenDb__Database (ssl=$CitizenDb__SslMode)"
+echo "Request DB:  $RequestDb__Host:$RequestDb__Port/$RequestDb__Database (ssl=$RequestDb__SslMode)"
+echo "Document DB: $DocumentDb__Host:$DocumentDb__Port/$DocumentDb__Database (ssl=$DocumentDb__SslMode)"
+echo "Gateway routes:"
+echo "  AuthService:            $AuthService__Url"
+echo "  CitizenService:         $CitizenService__Url"
+echo "  ServiceRequestService:  $ServiceRequestService__Url"
+echo "  DocumentService:        $DocumentService__Url"
+echo "============================================================"
 
 echo "Starting local development stack (local Docker databases)..."
 docker compose up -d --build \
