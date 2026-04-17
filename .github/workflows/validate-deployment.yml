@@ -1,0 +1,77 @@
+name: Validate Deployment
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Build AuthService
+        run: |
+          cd src/AuthService
+          dotnet restore
+          dotnet build --no-restore
+
+      - name: Build CitizenService
+        run: |
+          cd src/CitizenService
+          dotnet restore
+          dotnet build --no-restore
+
+      - name: Build ServiceRequestService
+        run: |
+          cd src/ServiceRequestService
+          dotnet restore
+          dotnet build --no-restore
+
+      - name: Build DocumentService
+        run: |
+          cd src/DocumentService
+          dotnet restore
+          dotnet build --no-restore
+
+      - name: Build ApiGateway
+        run: |
+          cd src/ApiGateway
+          dotnet restore
+          dotnet build --no-restore
+
+  validate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: src/frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: |
+          cd src/frontend
+          npm ci
+
+      - name: Lint frontend
+        run: |
+          cd src/frontend
+          npm run lint
+
+      - name: Build frontend
+        run: |
+          cd src/frontend
+          npm run build
