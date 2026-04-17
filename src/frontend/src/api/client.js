@@ -3,12 +3,10 @@ import axios from 'axios';
 const RENDER_GATEWAY_FALLBACK = 'https://api-gateway-xi3u.onrender.com';
 
 const isLocalHost =
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 const API_BASE =
-  import.meta.env.VITE_API_URL ||
-  (isLocalHost ? 'http://localhost:5050' : RENDER_GATEWAY_FALLBACK);
+  import.meta.env.VITE_API_URL || (isLocalHost ? 'http://localhost:5050' : RENDER_GATEWAY_FALLBACK);
 
 const client = axios.create({
   baseURL: API_BASE,

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { authApi } from '../api/services';
 
 const AuthContext = createContext(null);
@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
 
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });

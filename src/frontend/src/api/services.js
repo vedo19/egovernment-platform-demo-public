@@ -20,13 +20,10 @@ export const serviceRequestApi = {
   create: (data) => client.post('/api/servicerequests', data),
   getMyRequests: () => client.get('/api/servicerequests/my-requests'),
   getMyAssignments: () => client.get('/api/servicerequests/my-assignments'),
-  getAll: (status) =>
-    client.get('/api/servicerequests', { params: status ? { status } : {} }),
+  getAll: (status) => client.get('/api/servicerequests', { params: status ? { status } : {} }),
   getById: (id) => client.get(`/api/servicerequests/${id}`),
-  updateStatus: (id, data) =>
-    client.put(`/api/servicerequests/${id}/status`, data),
-  assignOfficer: (id, officerId) =>
-    client.put(`/api/servicerequests/${id}/assign`, { officerId }),
+  updateStatus: (id, data) => client.put(`/api/servicerequests/${id}/status`, data),
+  assignOfficer: (id, officerId) => client.put(`/api/servicerequests/${id}/assign`, { officerId }),
 };
 
 export const documentApi = {
@@ -36,6 +33,5 @@ export const documentApi = {
   getAll: (params) => client.get('/api/documents', { params }),
   getById: (id) => client.get(`/api/documents/${id}`),
   updateStatus: (id, data) => client.put(`/api/documents/${id}/status`, data),
-  assignOfficer: (id, officerId) =>
-    client.put(`/api/documents/${id}/assign`, { officerId }),
+  assignOfficer: (id, officerId) => client.put(`/api/documents/${id}/assign`, { officerId }),
 };

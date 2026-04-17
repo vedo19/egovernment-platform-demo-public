@@ -24,22 +24,37 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-            <Route path="/citizen" element={
-              <ProtectedRoute roles={['Citizen']}>
-                <CitizenDashboard />
+          <Route
+            element={
+              <ProtectedRoute>
+                <Layout />
               </ProtectedRoute>
-            } />
-            <Route path="/admin" element={
-              <ProtectedRoute roles={['Admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/officer" element={
-              <ProtectedRoute roles={['Officer']}>
-                <OfficerDashboard />
-              </ProtectedRoute>
-            } />
+            }
+          >
+            <Route
+              path="/citizen"
+              element={
+                <ProtectedRoute roles={['Citizen']}>
+                  <CitizenDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute roles={['Admin']}>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/officer"
+              element={
+                <ProtectedRoute roles={['Officer']}>
+                  <OfficerDashboard />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           <Route path="*" element={<HomeRedirect />} />
         </Routes>
