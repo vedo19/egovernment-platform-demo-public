@@ -43,10 +43,10 @@ done
 : "${DocumentDb__SslMode:=Require}"
 
 # Keep gateway routing to local dockerized services in this mode
-: "${AuthService__Url:=http://auth_service:80}"
-: "${CitizenService__Url:=http://citizen_service:80}"
-: "${ServiceRequestService__Url:=http://service_request_service:80}"
-: "${DocumentService__Url:=http://document_service:80}"
+: "${AuthService__Url:=http://auth_service:8080}"
+: "${CitizenService__Url:=http://citizen_service:8080}"
+: "${ServiceRequestService__Url:=http://service_request_service:8080}"
+: "${DocumentService__Url:=http://document_service:8080}"
 : "${Cors__AllowedOrigins__0:=http://localhost:3000}"
 : "${Cors__AllowedOrigins__1:=http://localhost:5173}"
 
