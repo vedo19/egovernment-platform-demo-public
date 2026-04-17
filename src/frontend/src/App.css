@@ -60,8 +60,8 @@
   background: #ffffff;
   border-radius: 20px;
   padding: 2.5rem;
-  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.10);
-  border: 1px solid rgba(0, 87, 184, 0.10);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1);
+  border: 1px solid rgba(0, 87, 184, 0.1);
 }
 
 .auth-header {
@@ -144,7 +144,10 @@
   font-size: 0.95rem;
   font-family: inherit;
   background: #fff;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
 .form-group textarea {
@@ -635,7 +638,9 @@ h2 {
   border-radius: 999px;
   color: rgba(255, 255, 255, 0.82);
   font-weight: 600;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
 }
 
 .nav-links a.active,
@@ -697,8 +702,7 @@ h2 {
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-
-    .page-hero {
+  .page-hero {
     padding: 1.25rem;
   }
 

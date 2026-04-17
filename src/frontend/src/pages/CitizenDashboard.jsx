@@ -30,10 +30,6 @@ export default function CitizenDashboard() {
   const [documentCount, setDocumentCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
-
   const loadSummary = async () => {
     try {
       const [requestsRes, documentsRes] = await Promise.all([
@@ -62,6 +58,10 @@ export default function CitizenDashboard() {
     }
   };
 
+  useEffect(() => {
+    loadSummary();
+  }, []);
+
   return (
     <div className="dashboard-page citizen-dashboard">
       <div className="page-hero">
@@ -89,13 +89,22 @@ export default function CitizenDashboard() {
       </div>
 
       <div className="tabs">
-        <button className={tab === 'profile' ? 'tab active' : 'tab'} onClick={() => setTab('profile')}>
+        <button
+          className={tab === 'profile' ? 'tab active' : 'tab'}
+          onClick={() => setTab('profile')}
+        >
           Profile
         </button>
-        <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
+        <button
+          className={tab === 'requests' ? 'tab active' : 'tab'}
+          onClick={() => setTab('requests')}
+        >
           Service Requests
         </button>
-        <button className={tab === 'documents' ? 'tab active' : 'tab'} onClick={() => setTab('documents')}>
+        <button
+          className={tab === 'documents' ? 'tab active' : 'tab'}
+          onClick={() => setTab('documents')}
+        >
           Documents
         </button>
       </div>
@@ -324,7 +333,11 @@ function RequestsTab({ onRefreshSummary }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showing, setShowing] = useState('list');
-  const [form, setForm] = useState({ type: 'Permit', title: '', description: '' });
+  const [form, setForm] = useState({
+    type: 'Permit',
+    title: '',
+    description: '',
+  });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -401,7 +414,11 @@ function RequestsTab({ onRefreshSummary }) {
 
           <div className="form-group">
             <label>Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
           </div>
 
           <div className="form-group">
@@ -475,7 +492,12 @@ function RequestsTab({ onRefreshSummary }) {
                   <td>{r.type || '—'}</td>
                   <td>{r.title || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
+                      }}
+                    >
                       {r.status || 'Unknown'}
                     </span>
                   </td>
@@ -509,7 +531,11 @@ function DocumentsTab({ onRefreshSummary }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showing, setShowing] = useState('list');
-  const [form, setForm] = useState({ documentType: 'BirthCertificate', title: '', description: '' });
+  const [form, setForm] = useState({
+    documentType: 'BirthCertificate',
+    title: '',
+    description: '',
+  });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -545,14 +571,20 @@ function DocumentsTab({ onRefreshSummary }) {
       setError(
         typeof d === 'string'
           ? d
-          : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to create document request'
+          : d?.message ||
+              d?.title ||
+              JSON.stringify(d?.errors || d) ||
+              'Failed to create document request'
       );
     }
   };
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = (d.documentType || '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const typeName = (d.documentType || '')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
     const status = (d.status || '').toLowerCase();
     const referenceNumber = (d.referenceNumber || '').toLowerCase();
 
@@ -589,7 +621,11 @@ function DocumentsTab({ onRefreshSummary }) {
 
           <div className="form-group">
             <label>Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
           </div>
 
           <div className="form-group">
@@ -642,7 +678,9 @@ function DocumentsTab({ onRefreshSummary }) {
         <p className="loading-text">Loading documents...</p>
       ) : filtered.length === 0 ? (
         <div className="empty-state-card">
-          <p className="empty">{search ? 'No matching documents.' : 'No documents requested yet.'}</p>
+          <p className="empty">
+            {search ? 'No matching documents.' : 'No documents requested yet.'}
+          </p>
         </div>
       ) : (
         <>
@@ -661,7 +699,12 @@ function DocumentsTab({ onRefreshSummary }) {
                 <tr key={d.id}>
                   <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
+                      }}
+                    >
                       {d.status || 'Unknown'}
                     </span>
                   </td>

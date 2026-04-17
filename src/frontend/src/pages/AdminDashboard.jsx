@@ -21,10 +21,6 @@ export default function AdminDashboard() {
   const [documentCount, setDocumentCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
-
   const loadSummary = async () => {
     try {
       const [requestsRes, documentsRes, usersRes] = await Promise.all([
@@ -42,6 +38,10 @@ export default function AdminDashboard() {
       setUserCount(0);
     }
   };
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
   return (
     <div className="dashboard-page admin-dashboard">
@@ -70,10 +70,16 @@ export default function AdminDashboard() {
       </div>
 
       <div className="tabs">
-        <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
+        <button
+          className={tab === 'requests' ? 'tab active' : 'tab'}
+          onClick={() => setTab('requests')}
+        >
           Service Requests
         </button>
-        <button className={tab === 'documents' ? 'tab active' : 'tab'} onClick={() => setTab('documents')}>
+        <button
+          className={tab === 'documents' ? 'tab active' : 'tab'}
+          onClick={() => setTab('documents')}
+        >
           Documents
         </button>
         <button className={tab === 'users' ? 'tab active' : 'tab'} onClick={() => setTab('users')}>
@@ -105,6 +111,7 @@ function RequestsTab({ onRefreshSummary }) {
     load();
     loadOfficers();
     setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const load = async () => {
@@ -194,7 +201,9 @@ function RequestsTab({ onRefreshSummary }) {
       <div className="section-header">
         <div>
           <h2>All Service Requests</h2>
-          <p className="subtitle">Review requests, update their status, and assign them to officers.</p>
+          <p className="subtitle">
+            Review requests, update their status, and assign them to officers.
+          </p>
         </div>
 
         <div className="header-actions">
@@ -251,14 +260,22 @@ function RequestsTab({ onRefreshSummary }) {
                       {r.citizenUserId || '—'}
                     </td>
                     <td>
-                      <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
+                        }}
+                      >
                         {r.status || 'Unknown'}
                       </span>
                     </td>
                     <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                     <td className="actions-cell">
                       {isSaved ? (
-                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(r.id)}>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() => handleChange(r.id)}
+                        >
                           Change
                         </button>
                       ) : (
@@ -340,6 +357,7 @@ function DocumentsTab({ onRefreshSummary }) {
     load();
     loadOfficers();
     setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const load = async () => {
@@ -414,7 +432,10 @@ function DocumentsTab({ onRefreshSummary }) {
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = (d.documentType || '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const typeName = (d.documentType || '')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
     const citizenId = (d.citizenUserId || '').toLowerCase();
     const referenceNumber = (d.referenceNumber || '').toLowerCase();
 
@@ -430,7 +451,9 @@ function DocumentsTab({ onRefreshSummary }) {
       <div className="section-header">
         <div>
           <h2>All Documents</h2>
-          <p className="subtitle">Manage document status, reference tracking, and officer assignment.</p>
+          <p className="subtitle">
+            Manage document status, reference tracking, and officer assignment.
+          </p>
         </div>
 
         <div className="header-actions">
@@ -483,7 +506,12 @@ function DocumentsTab({ onRefreshSummary }) {
                   <tr key={d.id}>
                     <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
                     <td>
-                      <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
+                      <span
+                        className="badge"
+                        style={{
+                          backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
+                        }}
+                      >
                         {d.status || 'Unknown'}
                       </span>
                     </td>
@@ -494,7 +522,10 @@ function DocumentsTab({ onRefreshSummary }) {
                     <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
                     <td className="actions-cell">
                       {isSaved ? (
-                        <button className="btn btn-sm btn-outline" onClick={() => handleChange(d.id)}>
+                        <button
+                          className="btn btn-sm btn-outline"
+                          onClick={() => handleChange(d.id)}
+                        >
                           Change
                         </button>
                       ) : (
@@ -652,7 +683,11 @@ function UsersTab({ onRefreshSummary }) {
                       className="badge"
                       style={{
                         backgroundColor:
-                          u.role === 'Admin' ? '#8b5cf6' : u.role === 'Officer' ? '#3b82f6' : '#10b981',
+                          u.role === 'Admin'
+                            ? '#8b5cf6'
+                            : u.role === 'Officer'
+                              ? '#3b82f6'
+                              : '#10b981',
                       }}
                     >
                       {u.role || 'Unknown'}

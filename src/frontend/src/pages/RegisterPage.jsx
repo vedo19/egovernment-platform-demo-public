@@ -29,9 +29,7 @@ export default function RegisterPage() {
         <div className="auth-header">
           <div className="auth-logo">eGov Portal</div>
           <h1>Create account</h1>
-          <p className="auth-subtitle">
-            Register to access digital government services
-          </p>
+          <p className="auth-subtitle">Register to access digital government services</p>
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}

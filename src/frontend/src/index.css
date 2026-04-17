@@ -1,11 +1,18 @@
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
 :root {
-  font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    'Segoe UI',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   line-height: 1.6;
   font-weight: 400;
   color: #1f2937;
@@ -15,9 +22,9 @@
   -moz-osx-font-smoothing: grayscale;
 
   --color-primary: #0057b8;
---color-primary-hover: #004494;
---color-secondary: #2f7dd3;
---color-accent: #f7c948;
+  --color-primary-hover: #004494;
+  --color-secondary: #2f7dd3;
+  --color-accent: #f7c948;
   --color-background: #f4f8fc;
   --color-surface: #ffffff;
   --color-text: #1f2937;

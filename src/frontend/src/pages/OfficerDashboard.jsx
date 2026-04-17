@@ -21,10 +21,6 @@ export default function OfficerDashboard() {
   const [documentCount, setDocumentCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
 
-  useEffect(() => {
-    loadSummary();
-  }, []);
-
   const loadSummary = async () => {
     try {
       const [requestsRes, documentsRes] = await Promise.all([
@@ -48,6 +44,10 @@ export default function OfficerDashboard() {
       setActiveCount(0);
     }
   };
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
   return (
     <div className="dashboard-page officer-dashboard">
@@ -76,10 +76,16 @@ export default function OfficerDashboard() {
       </div>
 
       <div className="tabs">
-        <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
+        <button
+          className={tab === 'requests' ? 'tab active' : 'tab'}
+          onClick={() => setTab('requests')}
+        >
           My Requests
         </button>
-        <button className={tab === 'documents' ? 'tab active' : 'tab'} onClick={() => setTab('documents')}>
+        <button
+          className={tab === 'documents' ? 'tab active' : 'tab'}
+          onClick={() => setTab('documents')}
+        >
           My Documents
         </button>
       </div>
@@ -174,7 +180,9 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <span className="info-value">
               <span
                 className="badge"
-                style={{ backgroundColor: STATUS_COLORS[selected.status] || '#6b7280' }}
+                style={{
+                  backgroundColor: STATUS_COLORS[selected.status] || '#6b7280',
+                }}
               >
                 {selected.status || 'Unknown'}
               </span>
@@ -241,7 +249,9 @@ function OfficerRequestsTab({ onRefreshSummary }) {
       <div className="section-header">
         <div>
           <h2>Assigned Service Requests</h2>
-          <p className="subtitle">Review active requests assigned to you and take action when needed.</p>
+          <p className="subtitle">
+            Review active requests assigned to you and take action when needed.
+          </p>
         </div>
         <input
           className="search-input"
@@ -258,7 +268,9 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         <p className="loading-text">Loading requests...</p>
       ) : filtered.length === 0 ? (
         <div className="empty-state-card">
-          <p className="empty">{search ? 'No matching requests.' : 'No pending requests assigned to you.'}</p>
+          <p className="empty">
+            {search ? 'No matching requests.' : 'No pending requests assigned to you.'}
+          </p>
         </div>
       ) : (
         <>
@@ -278,7 +290,12 @@ function OfficerRequestsTab({ onRefreshSummary }) {
                   <td>{r.type || '—'}</td>
                   <td className="desc-cell">{r.title || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
+                      }}
+                    >
                       {r.status || 'Unknown'}
                     </span>
                   </td>
@@ -366,7 +383,10 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = (d.documentType || '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const typeName = (d.documentType || '')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
     const title = (d.title || '').toLowerCase();
     return !q || typeName.includes(q) || title.includes(q);
   });
@@ -400,7 +420,9 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
             <span className="info-value">
               <span
                 className="badge"
-                style={{ backgroundColor: STATUS_COLORS[selected.status] || '#6b7280' }}
+                style={{
+                  backgroundColor: STATUS_COLORS[selected.status] || '#6b7280',
+                }}
               >
                 {selected.status || 'Unknown'}
               </span>
@@ -473,7 +495,9 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       <div className="section-header">
         <div>
           <h2>Assigned Documents</h2>
-          <p className="subtitle">Process active document requests and update their final outcome.</p>
+          <p className="subtitle">
+            Process active document requests and update their final outcome.
+          </p>
         </div>
         <input
           className="search-input"
@@ -490,7 +514,9 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
         <p className="loading-text">Loading documents...</p>
       ) : filtered.length === 0 ? (
         <div className="empty-state-card">
-          <p className="empty">{search ? 'No matching documents.' : 'No pending documents assigned to you.'}</p>
+          <p className="empty">
+            {search ? 'No matching documents.' : 'No pending documents assigned to you.'}
+          </p>
         </div>
       ) : (
         <>
@@ -510,7 +536,12 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
                   <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
                   <td className="desc-cell">{d.title || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
+                      }}
+                    >
                       {d.status || 'Unknown'}
                     </span>
                   </td>

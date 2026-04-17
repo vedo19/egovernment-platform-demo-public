@@ -19,15 +19,15 @@ export default function LoginPage() {
     try {
       const userData = await login(email.trim(), password);
 
-     if (userData.role === 'Citizen') {
-  navigate('/citizen');
-} else if (userData.role === 'Officer') {
-  navigate('/officer');
-} else if (userData.role === 'Admin') {
-  navigate('/admin');
-} else {
-  navigate('/');
-}
+      if (userData.role === 'Citizen') {
+        navigate('/citizen');
+      } else if (userData.role === 'Officer') {
+        navigate('/officer');
+      } else if (userData.role === 'Admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } catch (err) {
       const d = err.response?.data;
       setError(typeof d === 'string' ? d : d?.message || d?.title || 'Login failed');
