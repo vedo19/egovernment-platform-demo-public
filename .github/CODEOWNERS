@@ -1,17 +1,19 @@
-# Global fallback owner
-* @vedo19
-
 # Frontend ownership
-src/frontend/** @vedo19
+src/frontend/** @juusaa @FarisH03
 
 # Backend ownership
-src/AuthService/** @vedo19
-src/CitizenService/** @vedo19
-src/DocumentService/** @vedo19
-src/ServiceRequestService/** @vedo19
-src/ApiGateway/** @vedo19
+src/AuthService/** @vedo19 @SiMail03
+src/CitizenService/** @vedo19 @SiMail03
+src/DocumentService/** @vedo19 @SiMail03
+src/ServiceRequestService/** @vedo19 @SiMail03
+src/ApiGateway/** @vedo19 @SiMail03
 
 # Platform / DevOps ownership
-k8s/** @vedo19
-.github/workflows/** @vedo19
-docs/SHARED_CLUSTER_DEPLOYMENT.md @vedo19
+k8s/** @musss2003
+.github/workflows/** @musss2003
+docs/SHARED_CLUSTER_DEPLOYMENT.md @musss2003
+docs/RENDER_DEPLOYMENT.md @musss2003
+docs/NEON_SETUP.md @musss2003
+scripts/** @musss2003
+Makefile @musss2003
+docker-compose.yml @musss2003
