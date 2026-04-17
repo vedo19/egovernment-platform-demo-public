@@ -10,20 +10,18 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var dbHost = builder.Configuration["AuthDb:Host"];
+var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
+var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
+var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
+var dbPassword = builder.Configuration["AuthDb:Password"];
+var dbSslMode = builder.Configuration["AuthDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
 
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    var dbHost = builder.Configuration["AuthDb:Host"]
-        ?? throw new InvalidOperationException("Auth DB host is not configured.");
-    var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
-    var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
-    var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
-    var dbPassword = builder.Configuration["AuthDb:Password"]
-        ?? throw new InvalidOperationException("Auth DB password is not configured.");
-
-    connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword}";
-}
+var connectionString =
+    !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode={dbSslMode}"
+        : builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -81,6 +79,12 @@ builder.Services.AddHealthChecks();
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    app.Urls.Add($"http://0.0.0.0:{renderPort}");
+}
 
 // ---------- Auto-migrate on startup ----------
 using (var scope = app.Services.CreateScope())

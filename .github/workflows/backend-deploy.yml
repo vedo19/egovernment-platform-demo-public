@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       ingress_host:
-        description: Public hostname for the cluster ingress
+        description: Public hostname or IPv4-based host for the cluster ingress
         required: true
         default: egovernment.example.com
 
@@ -35,7 +35,26 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Run preflight checks
+        uses: ./.github/actions/run-preflight
+        with:
+          ingress-host: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+
   deploy:
+    needs: preflight
     runs-on: ubuntu-latest
     env:
       IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/egovernment-platform-demo-public
@@ -164,21 +183,118 @@ jobs:
 
       - name: Apply namespaces and infrastructure
         run: |
-          kubectl apply -f k8s/namespaces/
-          kubectl apply -f _deploy/k8s/config/configmap-app.yaml
-          kubectl apply -f _deploy/k8s/config/secret-backend.yaml
-          kubectl apply -f _deploy/k8s/postgres/
-          kubectl apply -f k8s/rabbitmq/rabbitmq.yaml
-          kubectl apply -f _deploy/k8s/storage/document-uploads-shared.yaml
+          set -euo pipefail
+
+          wait_for_api() {
+            for attempt in {1..60}; do
+              if kubectl --request-timeout=30s get --raw='/readyz' >/dev/null 2>&1; then
+                return 0
+              fi
+              echo "Kubernetes API not ready (attempt $attempt). Retrying in 10s..."
+              sleep 10
+            done
+
+            echo "Kubernetes API did not become ready in time." >&2
+            kubectl --request-timeout=30s version --short >&2 || true
+            kubectl --request-timeout=30s get nodes -o wide >&2 || true
+            exit 1
+          }
+
+          apply_with_retry() {
+            local label="$1"
+            local target="$2"
+
+            for attempt in {1..10}; do
+              if kubectl --request-timeout=60s apply -f "$target"; then
+                return 0
+              fi
+
+              echo "Apply failed for $label (attempt $attempt). Retrying in 15s..."
+              sleep 15
+              wait_for_api
+            done
+
+            echo "Failed to apply $label after 10 attempts." >&2
+            exit 1
+          }
+
+          for namespace in egovernment-db egovernment messaging monitoring; do
+            success=0
+            for attempt in {1..20}; do
+              if kubectl --request-timeout=60s create namespace "$namespace" >/dev/null 2>&1 || \
+                 kubectl --request-timeout=60s get namespace "$namespace" >/dev/null 2>&1; then
+                success=1
+                wait_for_api
+                break
+              fi
+
+              if [[ "$attempt" -eq 1 ]]; then
+                echo "First failure details for namespace $namespace:" >&2
+                kubectl --request-timeout=60s create namespace "$namespace" >&2 || true
+                kubectl --request-timeout=60s get namespace "$namespace" >&2 || true
+              fi
+
+              echo "Namespace create failed for $namespace (attempt $attempt). Retrying in 10s..."
+              sleep 10
+            done
+
+            if [[ "$success" -ne 1 ]]; then
+              echo "Failed to create namespace $namespace after 20 attempts." >&2
+              exit 1
+            fi
+          done
+
+          wait_for_api
+          apply_with_retry configmap _deploy/k8s/config/configmap-app.yaml
+          apply_with_retry secret-backend _deploy/k8s/config/secret-backend.yaml
+          apply_with_retry postgres _deploy/k8s/postgres/
+          apply_with_retry rabbitmq k8s/rabbitmq/rabbitmq.yaml
+          apply_with_retry document-uploads-shared _deploy/k8s/storage/document-uploads-shared.yaml
 
       - name: Apply backend services and ingress
         run: |
-          kubectl apply -f _deploy/k8s/services/auth-service.yaml
-          kubectl apply -f _deploy/k8s/services/citizen-service.yaml
-          kubectl apply -f _deploy/k8s/services/document-service.yaml
-          kubectl apply -f _deploy/k8s/services/service-request-service.yaml
-          kubectl apply -f _deploy/k8s/services/api-gateway.yaml
-          kubectl apply -f _deploy/k8s/ingress/ingress.yaml
+          set -euo pipefail
+
+          wait_for_api() {
+            for attempt in {1..60}; do
+              if kubectl --request-timeout=30s get --raw='/readyz' >/dev/null 2>&1; then
+                return 0
+              fi
+              echo "Kubernetes API not ready (attempt $attempt). Retrying in 10s..."
+              sleep 10
+            done
+
+            echo "Kubernetes API did not become ready in time." >&2
+            kubectl --request-timeout=30s version --short >&2 || true
+            kubectl --request-timeout=30s get nodes -o wide >&2 || true
+            exit 1
+          }
+
+          apply_with_retry() {
+            local label="$1"
+            local target="$2"
+
+            for attempt in {1..10}; do
+              if kubectl --request-timeout=60s apply -f "$target"; then
+                return 0
+              fi
+
+              echo "Apply failed for $label (attempt $attempt). Retrying in 15s..."
+              sleep 15
+              wait_for_api
+            done
+
+            echo "Failed to apply $label after 10 attempts." >&2
+            exit 1
+          }
+
+          wait_for_api
+          apply_with_retry auth-service _deploy/k8s/services/auth-service.yaml
+          apply_with_retry citizen-service _deploy/k8s/services/citizen-service.yaml
+          apply_with_retry document-service _deploy/k8s/services/document-service.yaml
+          apply_with_retry service-request-service _deploy/k8s/services/service-request-service.yaml
+          apply_with_retry api-gateway _deploy/k8s/services/api-gateway.yaml
+          apply_with_retry ingress _deploy/k8s/ingress/ingress.yaml
 
       - name: Wait for rollout
         run: |

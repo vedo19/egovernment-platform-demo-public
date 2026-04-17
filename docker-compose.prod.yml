@@ -3,12 +3,12 @@ services:
   auth_db:
     image: postgres:16-alpine
     container_name: auth_db
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
       POSTGRES_DB: auth_db
-    ports:
-      - "5436:5432"
+    # Database ports NOT exposed for security (internal only)
     volumes:
       - auth_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,24 +16,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ───────────────────────────── Auth Service ──────────────────────────────
   auth_service:
     build:
-      context: .
-      dockerfile: src/AuthService/Dockerfile
+      context: ./src/AuthService
+      dockerfile: Dockerfile
     container_name: auth_service
-    ports:
-      - "5001:8080"
+    restart: always
+    # Port not exposed externally - accessed through gateway only
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=auth_db;Port=5432;Database=auth_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
-      AuthDb__Host: "${AuthDb__Host:-auth_db}"
-      AuthDb__Port: "${AuthDb__Port:-5432}"
-      AuthDb__Database: "${AuthDb__Database:-auth_db}"
-      AuthDb__Username: "${AuthDb__Username:-postgres}"
-      AuthDb__Password: "${AuthDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
-      AuthDb__SslMode: "${AuthDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
@@ -44,17 +42,20 @@ services:
     depends_on:
       auth_db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ──────────────────────────── Citizen Database ───────────────────────────
   citizen_db:
     image: postgres:16-alpine
     container_name: citizen_db
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
       POSTGRES_DB: citizen_db
-    ports:
-      - "5433:5432"
     volumes:
       - citizen_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -62,41 +63,41 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ──────────────────────────── Citizen Service ────────────────────────────
   citizen_service:
     build:
-      context: .
-      dockerfile: src/CitizenService/Dockerfile
+      context: ./src/CitizenService
+      dockerfile: Dockerfile
     container_name: citizen_service
-    ports:
-      - "5002:8080"
+    restart: always
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=citizen_db;Port=5432;Database=citizen_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
-      CitizenDb__Host: "${CitizenDb__Host:-citizen_db}"
-      CitizenDb__Port: "${CitizenDb__Port:-5432}"
-      CitizenDb__Database: "${CitizenDb__Database:-citizen_db}"
-      CitizenDb__Username: "${CitizenDb__Username:-postgres}"
-      CitizenDb__Password: "${CitizenDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
-      CitizenDb__SslMode: "${CitizenDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
     depends_on:
       citizen_db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ─────────────────────── Service Request Database ────────────────────────
   request_db:
     image: postgres:16-alpine
     container_name: request_db
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
       POSTGRES_DB: request_db
-    ports:
-      - "5434:5432"
     volumes:
       - request_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -104,41 +105,41 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────── Service Request Service ─────────────────────────
   service_request_service:
     build:
-      context: .
-      dockerfile: src/ServiceRequestService/Dockerfile
+      context: ./src/ServiceRequestService
+      dockerfile: Dockerfile
     container_name: service_request_service
-    ports:
-      - "5003:8080"
+    restart: always
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=request_db;Port=5432;Database=request_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
-      RequestDb__Host: "${RequestDb__Host:-request_db}"
-      RequestDb__Port: "${RequestDb__Port:-5432}"
-      RequestDb__Database: "${RequestDb__Database:-request_db}"
-      RequestDb__Username: "${RequestDb__Username:-postgres}"
-      RequestDb__Password: "${RequestDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
-      RequestDb__SslMode: "${RequestDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
     depends_on:
       request_db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ─────────────────────────── Document Database ───────────────────────────
   document_db:
     image: postgres:16-alpine
     container_name: document_db
+    restart: always
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
       POSTGRES_DB: document_db
-    ports:
-      - "5435:5432"
     volumes:
       - document_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -146,52 +147,52 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────────── Document Service ────────────────────────────
   document_service:
     build:
-      context: .
-      dockerfile: src/DocumentService/Dockerfile
+      context: ./src/DocumentService
+      dockerfile: Dockerfile
     container_name: document_service
-    ports:
-      - "5004:8080"
+    restart: always
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=document_db;Port=5432;Database=document_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
-      DocumentDb__Host: "${DocumentDb__Host:-document_db}"
-      DocumentDb__Port: "${DocumentDb__Port:-5432}"
-      DocumentDb__Database: "${DocumentDb__Database:-document_db}"
-      DocumentDb__Username: "${DocumentDb__Username:-postgres}"
-      DocumentDb__Password: "${DocumentDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
-      DocumentDb__SslMode: "${DocumentDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
     depends_on:
       document_db:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ══════════════════════════════ API Gateway ══════════════════════════════
   api_gateway:
     build:
-      context: .
-      dockerfile: src/ApiGateway/Dockerfile
+      context: ./src/ApiGateway
+      dockerfile: Dockerfile
     container_name: api_gateway
+    restart: always
     ports:
-      - "5050:8080"
+      - "5050:80"
     environment:
-      ASPNETCORE_ENVIRONMENT: Development
-      AuthService__Url: "${AuthService__Url:-http://auth_service:8080}"
-      CitizenService__Url: "${CitizenService__Url:-http://citizen_service:8080}"
-      ServiceRequestService__Url: "${ServiceRequestService__Url:-http://service_request_service:8080}"
-      DocumentService__Url: "${DocumentService__Url:-http://document_service:8080}"
-      Cors__AllowedOrigins__0: "${Cors__AllowedOrigins__0:-http://localhost:3000}"
-      Cors__AllowedOrigins__1: "${Cors__AllowedOrigins__1:-http://localhost:5173}"
+      ASPNETCORE_ENVIRONMENT: Production
     depends_on:
       - auth_service
       - citizen_service
       - service_request_service
       - document_service
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   # ══════════════════════════════ Frontend ═════════════════════════════════
   frontend:
@@ -199,10 +200,15 @@ services:
       context: ./src/frontend
       dockerfile: Dockerfile
     container_name: frontend
+    restart: always
     ports:
-      - "3000:80"
+      - "80:80"
     depends_on:
       - api_gateway
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 volumes:
   auth_db_data:

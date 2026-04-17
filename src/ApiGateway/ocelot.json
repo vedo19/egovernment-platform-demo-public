@@ -3,7 +3,7 @@
         
     {
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -14,7 +14,7 @@
     
     {
       "UpstreamPathTemplate": "/api/citizens/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/citizens/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -23,7 +23,7 @@
     },
     {
       "UpstreamPathTemplate": "/api/citizens",
-      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/citizens",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -34,7 +34,7 @@
    
     {
       "UpstreamPathTemplate": "/api/servicerequests/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/servicerequests/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -43,7 +43,7 @@
     },
     {
       "UpstreamPathTemplate": "/api/servicerequests",
-      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/servicerequests",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -54,7 +54,7 @@
     
     {
       "UpstreamPathTemplate": "/api/documents/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/documents/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -63,7 +63,7 @@
     },
     {
       "UpstreamPathTemplate": "/api/documents",
-      "UpstreamHttpMethod": [ "GET", "POST" ],
+      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/documents",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
