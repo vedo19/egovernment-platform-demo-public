@@ -1,5 +1,7 @@
 {
   "devDependencies": {
+    "@commitlint/cli": "^20.5.0",
+    "@commitlint/config-conventional": "^20.5.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0"
   },
@@ -7,6 +9,8 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "src/frontend/**/*.{js,jsx}": ["npm --prefix src/frontend run lint"]
+    "src/frontend/**/*.{js,jsx}": [
+      "npm --prefix src/frontend run lint"
+    ]
   }
 }
