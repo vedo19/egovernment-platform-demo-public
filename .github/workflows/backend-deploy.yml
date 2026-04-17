@@ -1,24 +1,25 @@
 name: Backend Deploy
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/AuthService/**'
-      - 'src/CitizenService/**'
-      - 'src/DocumentService/**'
-      - 'src/ServiceRequestService/**'
-      - 'src/ApiGateway/**'
-      - 'k8s/config/**'
-      - 'k8s/postgres/**'
-      - 'k8s/rabbitmq/**'
-      - 'k8s/services/auth-service.yaml'
-      - 'k8s/services/citizen-service.yaml'
-      - 'k8s/services/document-service.yaml'
-      - 'k8s/services/service-request-service.yaml'
-      - 'k8s/services/api-gateway.yaml'
-      - 'k8s/storage/**'
-      - 'k8s/ingress/**'
+  # Disabled until fully implemented
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'src/AuthService/**'
+  #     - 'src/CitizenService/**'
+  #     - 'src/DocumentService/**'
+  #     - 'src/ServiceRequestService/**'
+  #     - 'src/ApiGateway/**'
+  #     - 'k8s/config/**'
+  #     - 'k8s/postgres/**'
+  #     - 'k8s/rabbitmq/**'
+  #     - 'k8s/services/auth-service.yaml'
+  #     - 'k8s/services/citizen-service.yaml'
+  #     - 'k8s/services/document-service.yaml'
+  #     - 'k8s/services/service-request-service.yaml'
+  #     - 'k8s/services/api-gateway.yaml'
+  #     - 'k8s/storage/**'
+  #     - 'k8s/ingress/**'
   workflow_dispatch:
     inputs:
       ingress_host:
