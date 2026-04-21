@@ -13,8 +13,9 @@ export default function RegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
-      const userData = await register(fullName, email, password);
+      await register(fullName, email, password);
       navigate('/citizen');
     } catch (err) {
       const d = err.response?.data;
@@ -25,44 +26,62 @@ export default function RegisterPage() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h1>Register</h1>
-        <p className="auth-subtitle">Create your account</p>
+        <div className="auth-header">
+          <div className="auth-logo">eGov Portal</div>
+          <h1>Create account</h1>
+          <p className="auth-subtitle">Register to access digital government services</p>
+        </div>
+
         {error && <div className="alert alert-error">{error}</div>}
-        <form onSubmit={handleSubmit}>
+
+        <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
-            <label>Full Name</label>
+            <label htmlFor="fullName">Full name</label>
             <input
+              id="fullName"
               type="text"
+              placeholder="Enter your full name"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              autoComplete="name"
               required
             />
           </div>
+
           <div className="form-group">
-            <label>Email</label>
+            <label htmlFor="email">Email address</label>
             <input
+              id="email"
               type="email"
+              placeholder="example@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
               required
             />
           </div>
+
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <input
+              id="password"
               type="password"
+              placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
               required
               minLength={6}
             />
           </div>
+
           <button type="submit" className="btn btn-primary btn-full">
-            Create Account
+            Create account
           </button>
         </form>
+
         <p className="auth-footer">
-          Already have an account? <Link to="/login">Sign In</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </div>
     </div>

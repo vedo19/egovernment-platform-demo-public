@@ -1,0 +1,100 @@
+name: Setup GHCR and Kubernetes Access
+description: Logs into GHCR, installs kubectl, and configures kubeconfig.
+
+inputs:
+  ghcr-username:
+    description: Username for GHCR authentication.
+    required: true
+  ghcr-token:
+    description: Token for GHCR authentication.
+    required: true
+  kube-config-b64:
+    description: Base64 encoded kubeconfig content.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Log in to GHCR
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ inputs.ghcr-username }}
+        password: ${{ inputs.ghcr-token }}
+
+    - name: Install kubectl
+      uses: azure/setup-kubectl@v4
+
+    - name: Configure kubeconfig
+      shell: bash
+      run: |
+        set -euo pipefail
+        mkdir -p "$HOME/.kube"
+        echo '${{ inputs.kube-config-b64 }}' | base64 -d > "$HOME/.kube/config"
+
+    - name: Warm up Kubernetes API connectivity
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        api_server="$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')"
+        echo "Using Kubernetes API endpoint: ${api_server}"
+
+        api_without_scheme="${api_server#https://}"
+        api_without_scheme="${api_without_scheme#http://}"
+        api_host_port="${api_without_scheme%%/*}"
+        api_host="${api_host_port%%:*}"
+        api_port="${api_host_port##*:}"
+        if [[ "$api_port" == "$api_host_port" ]]; then
+          api_port="443"
+        fi
+
+        echo "API host: ${api_host}"
+        echo "API port: ${api_port}"
+
+        if command -v getent >/dev/null 2>&1; then
+          echo "API DNS resolution:" 
+          getent hosts "$api_host" || true
+        fi
+
+        runner_ip="$(curl -fsS --connect-timeout 5 --max-time 10 https://api.ipify.org || true)"
+        if [[ -n "$runner_ip" ]]; then
+          echo "Runner egress IPv4: ${runner_ip}"
+        else
+          echo "Runner egress IPv4: unavailable"
+        fi
+
+        for attempt in {1..40}; do
+          if kubectl --request-timeout=20s get --raw='/readyz' >/dev/null 2>&1; then
+            echo "Kubernetes API is reachable."
+            exit 0
+          fi
+
+          if [[ "$attempt" -eq 1 || "$attempt" -eq 10 || "$attempt" -eq 20 || "$attempt" -eq 30 ]]; then
+            echo "Connectivity probe at attempt ${attempt}:"
+
+            if timeout 10 bash -c "</dev/tcp/${api_host}/${api_port}" >/dev/null 2>&1; then
+              echo "TCP probe reached ${api_host}:${api_port}."
+            else
+              echo "TCP probe could not reach ${api_host}:${api_port}."
+            fi
+
+            http_code="$(curl -ksS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 20 "${api_server%/}/readyz" || true)"
+            if [[ "$http_code" == "200" ]]; then
+              echo "HTTP probe reached /readyz with status 200."
+            elif [[ "$http_code" == "401" || "$http_code" == "403" ]]; then
+              echo "HTTP probe reached API endpoint (status ${http_code}, auth required)."
+            elif [[ "$http_code" == "000" || -z "$http_code" ]]; then
+              echo "HTTP probe did not get a response from API endpoint yet."
+            else
+              echo "HTTP probe reached API endpoint with status ${http_code}."
+            fi
+          fi
+
+          echo "Kubernetes API not reachable yet (attempt ${attempt}/40). Retrying in 15s..."
+          sleep 15
+        done
+
+        echo "Kubernetes API was not reachable from this GitHub-hosted runner after warm-up." >&2
+        kubectl --request-timeout=20s cluster-info >&2 || true
+        exit 1

@@ -20,14 +20,20 @@ services:
   # ───────────────────────────── Auth Service ──────────────────────────────
   auth_service:
     build:
-      context: ./src/AuthService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/AuthService/Dockerfile
     container_name: auth_service
     ports:
-      - "5001:80"
+      - "5001:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Host=auth_db;Port=5432;Database=auth_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      AuthDb__Host: "${AuthDb__Host:-auth_db}"
+      AuthDb__Port: "${AuthDb__Port:-5432}"
+      AuthDb__Database: "${AuthDb__Database:-auth_db}"
+      AuthDb__Username: "${AuthDb__Username:-postgres}"
+      AuthDb__Password: "${AuthDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
+      AuthDb__SslMode: "${AuthDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
@@ -60,14 +66,20 @@ services:
   # ──────────────────────────── Citizen Service ────────────────────────────
   citizen_service:
     build:
-      context: ./src/CitizenService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/CitizenService/Dockerfile
     container_name: citizen_service
     ports:
-      - "5002:80"
+      - "5002:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Host=citizen_db;Port=5432;Database=citizen_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      CitizenDb__Host: "${CitizenDb__Host:-citizen_db}"
+      CitizenDb__Port: "${CitizenDb__Port:-5432}"
+      CitizenDb__Database: "${CitizenDb__Database:-citizen_db}"
+      CitizenDb__Username: "${CitizenDb__Username:-postgres}"
+      CitizenDb__Password: "${CitizenDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
+      CitizenDb__SslMode: "${CitizenDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
@@ -96,14 +108,20 @@ services:
   # ─────────────────────── Service Request Service ─────────────────────────
   service_request_service:
     build:
-      context: ./src/ServiceRequestService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/ServiceRequestService/Dockerfile
     container_name: service_request_service
     ports:
-      - "5003:80"
+      - "5003:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Host=request_db;Port=5432;Database=request_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      RequestDb__Host: "${RequestDb__Host:-request_db}"
+      RequestDb__Port: "${RequestDb__Port:-5432}"
+      RequestDb__Database: "${RequestDb__Database:-request_db}"
+      RequestDb__Username: "${RequestDb__Username:-postgres}"
+      RequestDb__Password: "${RequestDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
+      RequestDb__SslMode: "${RequestDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
@@ -133,14 +151,20 @@ services:
   # ─────────────────────────── Document Service ────────────────────────────
   document_service:
     build:
-      context: ./src/DocumentService
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/DocumentService/Dockerfile
     container_name: document_service
     ports:
-      - "5004:80"
+      - "5004:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__DefaultConnection: "Host=document_db;Port=5432;Database=document_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      DocumentDb__Host: "${DocumentDb__Host:-document_db}"
+      DocumentDb__Port: "${DocumentDb__Port:-5432}"
+      DocumentDb__Database: "${DocumentDb__Database:-document_db}"
+      DocumentDb__Username: "${DocumentDb__Username:-postgres}"
+      DocumentDb__Password: "${DocumentDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
+      DocumentDb__SslMode: "${DocumentDb__SslMode:-Disable}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
@@ -151,13 +175,19 @@ services:
   # ══════════════════════════════ API Gateway ══════════════════════════════
   api_gateway:
     build:
-      context: ./src/ApiGateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: src/ApiGateway/Dockerfile
     container_name: api_gateway
     ports:
-      - "5050:80"
+      - "5050:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      AuthService__Url: "${AuthService__Url:-http://auth_service:8080}"
+      CitizenService__Url: "${CitizenService__Url:-http://citizen_service:8080}"
+      ServiceRequestService__Url: "${ServiceRequestService__Url:-http://service_request_service:8080}"
+      DocumentService__Url: "${DocumentService__Url:-http://document_service:8080}"
+      Cors__AllowedOrigins__0: "${Cors__AllowedOrigins__0:-http://localhost:3000}"
+      Cors__AllowedOrigins__1: "${Cors__AllowedOrigins__1:-http://localhost:5173}"
     depends_on:
       - auth_service
       - citizen_service

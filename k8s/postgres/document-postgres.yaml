@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: document-postgres
+  namespace: egovernment-db
+spec:
+  clusterIP: None
+  selector:
+    app: document-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: document-postgres
+  namespace: egovernment-db
+spec:
+  serviceName: document-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: document-postgres
+  template:
+    metadata:
+      labels:
+        app: document-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: postgres
+            - name: POSTGRES_DB
+              value: document_db
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: DocumentDb__Password
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U postgres -d document_db"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U postgres -d document_db"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

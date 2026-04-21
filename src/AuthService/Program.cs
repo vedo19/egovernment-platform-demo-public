@@ -10,8 +10,18 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var dbHost = builder.Configuration["AuthDb:Host"];
+var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
+var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
+var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
+var dbPassword = builder.Configuration["AuthDb:Password"];
+var dbSslMode = builder.Configuration["AuthDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
+
+var connectionString =
+    !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode={dbSslMode}"
+        : builder.Configuration.GetConnectionString("DefaultConnection")
+            ?? throw new InvalidOperationException("Database connection settings are not configured.");
 
 builder.Services.AddDbContext<AuthDbContext>(options =>
     options.UseNpgsql(connectionString));
@@ -63,11 +73,18 @@ builder.Services.AddAuthorization();
 // ---------- Application Services ----------
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthServiceImpl>();
+builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+var renderPort = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(renderPort))
+{
+    app.Urls.Add($"http://0.0.0.0:{renderPort}");
+}
 
 // ---------- Auto-migrate on startup ----------
 using (var scope = app.Services.CreateScope())
@@ -101,5 +118,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();

@@ -8,6 +8,7 @@ namespace DocumentService.Services;
 public class DocumentServiceImpl : IDocumentService
 {
     private readonly DocumentDbContext _db;
+    private readonly string _storageRoot;
 
     private static readonly HashSet<string> ValidDocumentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -20,9 +21,10 @@ public class DocumentServiceImpl : IDocumentService
         "Submitted", "UnderReview", "Approved", "Rejected"
     };
 
-    public DocumentServiceImpl(DocumentDbContext db)
+    public DocumentServiceImpl(DocumentDbContext db, IConfiguration configuration)
     {
         _db = db;
+        _storageRoot = configuration["DocumentStorage:Path"] ?? "/app/uploads";
     }
 
     public async Task<DocumentDto> CreateAsync(Guid citizenUserId, CreateDocumentRequestDto dto)
@@ -248,6 +250,34 @@ public class DocumentServiceImpl : IDocumentService
             return;
 
         throw new ArgumentException("Only the assigned officer can perform this action.");
+    }
+
+    public async Task<string?> SaveAttachmentAsync(Guid documentId, IFormFile file)
+    {
+        var document = await _db.Documents.FindAsync(documentId);
+        if (document is null)
+            return null;
+
+        var documentFolder = Path.Combine(_storageRoot, documentId.ToString("N"));
+        Directory.CreateDirectory(documentFolder);
+
+        var safeFileName = Path.GetFileName(file.FileName);
+        var filePath = Path.Combine(documentFolder, safeFileName);
+
+        await using var stream = File.Create(filePath);
+        await file.CopyToAsync(stream);
+
+        return filePath;
+    }
+
+    public Task<string?> GetAttachmentPathAsync(Guid documentId)
+    {
+        var documentFolder = Path.Combine(_storageRoot, documentId.ToString("N"));
+        if (!Directory.Exists(documentFolder))
+            return Task.FromResult<string?>(null);
+
+        var filePath = Directory.EnumerateFiles(documentFolder).OrderByDescending(x => x).FirstOrDefault();
+        return Task.FromResult(filePath);
     }
 
     private static string GenerateReferenceNumber(string documentType)
