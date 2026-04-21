@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { authApi, citizenApi, serviceRequestApi, documentApi } from '../api/services';
+import { authApi, serviceRequestApi, documentApi } from '../api/services';
 import ProgressBar from '../components/ProgressBar';
 
 const REQUEST_STATUSES = ['Submitted', 'OfficerAssigned', 'AwaitingDocuments', 'UnderReview', 'DocumentsRejected', 'Approved', 'Rejected'];
