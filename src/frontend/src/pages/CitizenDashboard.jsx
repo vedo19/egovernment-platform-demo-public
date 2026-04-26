@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { citizenApi, serviceRequestApi, documentApi } from '../api/services';
+import ProgressBar from '../components/ProgressBar';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
 const DOC_TYPES = [
@@ -10,17 +11,7 @@ const DOC_TYPES = [
   'DeathCertificate',
   'DrivingLicense',
 ];
-
-const STATUS_COLORS = {
-  Pending: '#f59e0b',
-  InProgress: '#3b82f6',
-  Processing: '#3b82f6',
-  Resolved: '#10b981',
-  Ready: '#10b981',
-  Collected: '#6b7280',
-  Rejected: '#ef4444',
-};
-
+const UPLOAD_ALLOWED_STATUSES = new Set(['AwaitingDocuments', 'DocumentsRejected']);
 const PAGE_SIZE = 5;
 
 export default function CitizenDashboard() {
@@ -341,6 +332,9 @@ function RequestsTab({ onRefreshSummary }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [uploadingId, setUploadingId] = useState(null);
+  const [uploadError, setUploadError] = useState('');
+  const [documentBusyId, setDocumentBusyId] = useState(null);
 
   useEffect(() => {
     loadRequests();
@@ -375,6 +369,35 @@ function RequestsTab({ onRefreshSummary }) {
           ? d
           : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to create request'
       );
+    }
+  };
+
+  const handleDocumentUpload = async (requestId, file) => {
+    if (!file) return;
+    setUploadError('');
+    setUploadingId(requestId);
+    try {
+      await serviceRequestApi.uploadDocument(requestId, file);
+      await loadRequests();
+    } catch (err) {
+      const d = err.response?.data;
+      setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to upload document');
+    } finally {
+      setUploadingId(null);
+    }
+  };
+
+  const handleOpenDocument = async (request) => {
+    if (!request.linkedDocumentId) return;
+    setUploadError('');
+    setDocumentBusyId(request.id);
+    try {
+      await documentApi.openSupportingFile(request.linkedDocumentId);
+    } catch (err) {
+      const d = err.response?.data;
+      setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open uploaded document');
+    } finally {
+      setDocumentBusyId(null);
     }
   };
 
@@ -476,33 +499,52 @@ function RequestsTab({ onRefreshSummary }) {
         </div>
       ) : (
         <>
+          {uploadError && <div className="alert alert-error">{uploadError}</div>}
           <table className="data-table">
             <thead>
               <tr>
                 <th>Type</th>
                 <th>Title</th>
                 <th>Status</th>
-                <th>Notes</th>
+                <th>Progress</th>
+                <th>Officer Note</th>
+                <th>Upload PDF</th>
+                <th>Uploaded PDF</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {paged.map((r) => (
                 <tr key={r.id}>
-                  <td>{r.type || '—'}</td>
-                  <td>{r.title || '—'}</td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
-                      }}
-                    >
-                      {r.status || 'Unknown'}
-                    </span>
+                  <td>{r.type}</td>
+                  <td>{r.title}</td>
+                  <td>{r.status}</td>
+                  <td style={{ minWidth: '180px' }}>
+                    <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                   </td>
-                  <td className="desc-cell">{r.adminNotes || '—'}</td>
-                  <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+                  <td className="desc-cell">
+                    {UPLOAD_ALLOWED_STATUSES.has(r.status) ? (r.officerNote || 'No note provided') : '—'}
+                  </td>
+                  <td>
+                    {UPLOAD_ALLOWED_STATUSES.has(r.status) ? (
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        disabled={uploadingId === r.id}
+                        onChange={(e) => handleDocumentUpload(r.id, e.target.files?.[0])}
+                      />
+                    ) : (
+                      '—'
+                    )}
+                  </td>
+                  <td>
+                    {r.linkedDocumentId ? (
+                      <button className="btn btn-sm btn-outline" disabled={documentBusyId === r.id} onClick={() => handleOpenDocument(r)}>
+                        {documentBusyId === r.id ? 'Opening...' : 'View'}
+                      </button>
+                    ) : '—'}
+                  </td>
+                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
@@ -689,7 +731,8 @@ function DocumentsTab({ onRefreshSummary }) {
               <tr>
                 <th>Type</th>
                 <th>Status</th>
-                <th>Rejection Reason</th>
+                <th>Progress</th>
+                <th>Reason</th>
                 <th>Reference #</th>
                 <th>Created</th>
               </tr>
@@ -697,16 +740,10 @@ function DocumentsTab({ onRefreshSummary }) {
             <tbody>
               {paged.map((d) => (
                 <tr key={d.id}>
-                  <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
-                      }}
-                    >
-                      {d.status || 'Unknown'}
-                    </span>
+                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td>{d.status}</td>
+                  <td style={{ minWidth: '180px' }}>
+                    <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
                   </td>
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>

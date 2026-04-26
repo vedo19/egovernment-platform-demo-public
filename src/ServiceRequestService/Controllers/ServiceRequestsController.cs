@@ -62,10 +62,29 @@ public class ServiceRequestsController : ControllerBase
         return Ok(requests);
     }
 
+    /// <summary>List all service requests (Admin).</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpGet("all")]
+    public async Task<IActionResult> GetAllForAdmin([FromQuery] string? status)
+    {
+        var requests = await _serviceRequestService.GetAllAsync(status);
+        return Ok(requests);
+    }
+
     /// <summary>Get requests assigned to the current officer.</summary>
     [Authorize(Roles = "Officer")]
     [HttpGet("my-assignments")]
     public async Task<IActionResult> GetMyAssignments()
+    {
+        var officerId = GetUserId();
+        var requests = await _serviceRequestService.GetByOfficerAsync(officerId);
+        return Ok(requests);
+    }
+
+    /// <summary>Get requests assigned to current officer.</summary>
+    [Authorize(Roles = "Officer")]
+    [HttpGet("assigned-to-me")]
+    public async Task<IActionResult> GetAssignedToMe()
     {
         var officerId = GetUserId();
         var requests = await _serviceRequestService.GetByOfficerAsync(officerId);
@@ -85,9 +104,73 @@ public class ServiceRequestsController : ControllerBase
     /// <summary>Assign an officer to a service request (Admin only).</summary>
     [Authorize(Roles = "Admin")]
     [HttpPut("{id:guid}/assign")]
-    public async Task<IActionResult> AssignOfficer(Guid id, [FromBody] AssignOfficerDto request)
+    public async Task<IActionResult> AssignOfficer(Guid id, [FromBody] AssignOfficerRequestDto request)
     {
         var result = await _serviceRequestService.AssignOfficerAsync(id, request.OfficerId);
+        return Ok(result);
+    }
+
+    /// <summary>Assign an officer to a service request (Admin only).</summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id:guid}/assign-officer")]
+    public async Task<IActionResult> AssignOfficerV2(Guid id, [FromBody] AssignOfficerRequestDto request)
+    {
+        var result = await _serviceRequestService.AssignOfficerAsync(id, request.OfficerId);
+        return Ok(result);
+    }
+
+    /// <summary>Officer or admin requests supporting documents for permit.</summary>
+    [Authorize(Roles = "Admin,Officer")]
+    [HttpPut("{id:guid}/request-documents")]
+    public async Task<IActionResult> RequestDocuments(Guid id, [FromBody] RequestDocumentsDto request)
+    {
+        var actorId = GetUserId();
+        var isAdmin = IsInRole("Admin");
+        var result = await _serviceRequestService.RequestDocumentsAsync(id, actorId, request.OfficerNote, isAdmin);
+        return Ok(result);
+    }
+
+    /// <summary>Officer or admin approves a request.</summary>
+    [Authorize(Roles = "Admin,Officer")]
+    [HttpPut("{id:guid}/approve")]
+    public async Task<IActionResult> Approve(Guid id)
+    {
+        var actorId = GetUserId();
+        var isAdmin = IsInRole("Admin");
+        var result = await _serviceRequestService.ApproveAsync(id, actorId, isAdmin);
+        return Ok(result);
+    }
+
+    /// <summary>Officer or admin rejects a request with a reason.</summary>
+    [Authorize(Roles = "Admin,Officer")]
+    [HttpPut("{id:guid}/reject")]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectServiceRequestDto request)
+    {
+        var actorId = GetUserId();
+        var isAdmin = IsInRole("Admin");
+        var result = await _serviceRequestService.RejectAsync(id, actorId, request.Reason, isAdmin);
+        return Ok(result);
+    }
+
+    /// <summary>Officer or admin rejects uploaded permit documents and requests resubmission.</summary>
+    [Authorize(Roles = "Admin,Officer")]
+    [HttpPut("{id:guid}/reject-documents")]
+    public async Task<IActionResult> RejectDocuments(Guid id, [FromBody] RejectServiceRequestDto request)
+    {
+        var actorId = GetUserId();
+        var isAdmin = IsInRole("Admin");
+        var result = await _serviceRequestService.RejectDocumentsAsync(id, actorId, request.Reason, isAdmin);
+        return Ok(result);
+    }
+
+    /// <summary>Citizen links an uploaded document to permit request and resumes review flow.</summary>
+    [Authorize(Roles = "Citizen")]
+    [HttpPost("{id:guid}/upload-document")]
+    public async Task<IActionResult> UploadDocument(Guid id, [FromForm] UploadDocumentDto request)
+    {
+        var citizenId = GetUserId();
+        var authorizationHeader = Request.Headers.Authorization.ToString();
+        var result = await _serviceRequestService.UploadDocumentAsync(id, citizenId, request.File, authorizationHeader);
         return Ok(result);
     }
 
@@ -102,9 +185,9 @@ public class ServiceRequestsController : ControllerBase
             ?? throw new UnauthorizedAccessException("Invalid token: missing sub claim.");
         return Guid.Parse(sub);
     }
-}
 
-public class AssignOfficerDto
-{
-    public Guid OfficerId { get; set; }
+    private bool IsInRole(string role)
+    {
+        return User.FindFirst("role")?.Value?.Equals(role, StringComparison.OrdinalIgnoreCase) == true;
+    }
 }

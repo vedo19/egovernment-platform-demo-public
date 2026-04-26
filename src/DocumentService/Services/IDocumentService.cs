@@ -1,4 +1,5 @@
 using DocumentService.DTOs;
+using Microsoft.AspNetCore.Http;
 
 namespace DocumentService.Services;
 
@@ -11,6 +12,9 @@ public interface IDocumentService
     Task<IEnumerable<DocumentDto>> GetByOfficerAsync(Guid officerId);
     Task<DocumentDto?> UpdateStatusAsync(Guid id, Guid officerId, UpdateDocumentStatusDto dto);
     Task<DocumentDto?> AssignOfficerAsync(Guid id, Guid officerId);
-    Task<string?> SaveAttachmentAsync(Guid documentId, IFormFile file);
-    Task<string?> GetAttachmentPathAsync(Guid documentId);
+    Task<DocumentDto?> StartReviewAsync(Guid id, Guid actorId, bool isAdmin);
+    Task<DocumentDto?> ApproveAsync(Guid id, Guid actorId, bool isAdmin);
+    Task<DocumentDto?> RejectAsync(Guid id, Guid actorId, string reason, bool isAdmin);
+    Task<SupportingDocumentDto> UploadSupportingDocumentAsync(Guid citizenUserId, Guid serviceRequestId, IFormFile file);
+    Task<SupportingDocumentFileDto?> GetSupportingDocumentFileAsync(Guid id);
 }

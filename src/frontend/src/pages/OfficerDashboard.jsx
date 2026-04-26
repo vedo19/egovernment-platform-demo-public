@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { serviceRequestApi, documentApi } from '../api/services';
-
-const STATUS_COLORS = {
-  Pending: '#f59e0b',
-  InProgress: '#3b82f6',
-  Processing: '#3b82f6',
-  Resolved: '#10b981',
-  Ready: '#10b981',
-  Collected: '#6b7280',
-  Rejected: '#ef4444',
-};
-
+import ProgressBar from '../components/ProgressBar';
 const PAGE_SIZE = 8;
 
 export default function OfficerDashboard() {
@@ -29,10 +19,10 @@ export default function OfficerDashboard() {
       ]);
 
       const requests = (requestsRes.data || []).filter(
-        (r) => r.status !== 'Resolved' && r.status !== 'Rejected'
+        (r) => r.status !== 'Approved' && r.status !== 'Rejected'
       );
       const documents = (documentsRes.data || []).filter(
-        (d) => d.status !== 'Ready' && d.status !== 'Rejected' && d.status !== 'Collected'
+        (d) => d.status !== 'Approved' && d.status !== 'Rejected'
       );
 
       setRequestCount(requests.length);
@@ -104,6 +94,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [fileBusy, setFileBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
@@ -114,28 +105,34 @@ function OfficerRequestsTab({ onRefreshSummary }) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await serviceRequestApi.getMyAssignments();
-      setRequests((data || []).filter((r) => r.status !== 'Resolved' && r.status !== 'Rejected'));
-    } catch {
-      /* empty */
-    } finally {
+      const { data } = await serviceRequestApi.getAssignedToMe();
+      // Only show actionable items — hide already resolved/rejected
+      setRequests(data.filter((r) => r.status !== 'Approved' && r.status !== 'Rejected'));
+    } catch { /* empty */ } finally {
       setLoading(false);
     }
   };
 
-  const handleAction = async (id, status) => {
-    if (status === 'Rejected' && !notes.trim()) {
-      setError('You must provide a reason when rejecting a request.');
+  const handleAction = async (request, action) => {
+    if ((action === 'reject' || action === 'reject-documents' || action === 'request-documents') && !notes.trim()) {
+      setError('You must provide a note for this action.');
       return;
     }
 
     setError('');
 
     try {
-      await serviceRequestApi.updateStatus(id, {
-        status,
-        adminNotes: notes || undefined,
-      });
+      if (action === 'approve') {
+        await serviceRequestApi.approve(request.id);
+      } else if (action === 'reject-documents') {
+        await serviceRequestApi.rejectDocuments(request.id, notes);
+      } else if (action === 'reject') {
+        await serviceRequestApi.reject(request.id, notes);
+      } else if (action === 'request-documents') {
+        await serviceRequestApi.requestDocuments(request.id, notes);
+      } else if (action === 'start-review') {
+        await serviceRequestApi.updateStatus(request.id, { status: 'UnderReview' });
+      }
       setSelected(null);
       setNotes('');
       await load();
@@ -143,6 +140,33 @@ function OfficerRequestsTab({ onRefreshSummary }) {
     } catch (err) {
       const d = err.response?.data;
       setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
+    }
+  };
+
+  const handleOpenDocument = async (documentId) => {
+    setError('');
+    setFileBusy(true);
+    try {
+      await documentApi.openSupportingFile(documentId);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open document');
+    } finally {
+      setFileBusy(false);
+    }
+  };
+
+  const handleDownloadDocument = async (documentId, request) => {
+    setError('');
+    setFileBusy(true);
+    try {
+      const suggestedName = `${request.type}-${request.id}.pdf`;
+      await documentApi.downloadSupportingFile(documentId, suggestedName);
+    } catch (err) {
+      const d = err.response?.data;
+      setError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to download document');
+    } finally {
+      setFileBusy(false);
     }
   };
 
@@ -165,39 +189,13 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         </div>
 
         {error && <div className="alert alert-error">{error}</div>}
-
-        <div className="profile-info-grid">
-          <div className="info-item">
-            <span className="info-label">Type</span>
-            <span className="info-value">{selected.type || '—'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Title</span>
-            <span className="info-value">{selected.title || '—'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Status</span>
-            <span className="info-value">
-              <span
-                className="badge"
-                style={{
-                  backgroundColor: STATUS_COLORS[selected.status] || '#6b7280',
-                }}
-              >
-                {selected.status || 'Unknown'}
-              </span>
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Created</span>
-            <span className="info-value">
-              {selected.createdAt ? new Date(selected.createdAt).toLocaleDateString() : '—'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Citizen ID</span>
-            <span className="info-value id-cell-inline">{selected.citizenUserId || '—'}</span>
-          </div>
+        <div className="detail-grid">
+          <div><strong>Type:</strong> {selected.type}</div>
+          <div><strong>Title:</strong> {selected.title}</div>
+          <div><strong>Status:</strong> {selected.status}</div>
+          <div style={{ gridColumn: '1 / span 2' }}><strong>Progress:</strong> <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} /></div>
+          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
         </div>
 
         <div className="detail-description">
@@ -211,7 +209,16 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <p>{selected.adminNotes}</p>
           </div>
         )}
-
+        {selected.linkedDocumentId && (
+          <div className="btn-group">
+            <button className="btn btn-primary" disabled={fileBusy} onClick={() => handleOpenDocument(selected.linkedDocumentId)}>
+              {fileBusy ? 'Opening...' : 'View Submitted PDF'}
+            </button>
+            <button className="btn btn-outline" disabled={fileBusy} onClick={() => handleDownloadDocument(selected.linkedDocumentId, selected)}>
+              Download PDF
+            </button>
+          </div>
+        )}
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label>Notes / Rejection Reason</label>
           <textarea
@@ -223,22 +230,22 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Resolved')}>
-            Approve
-          </button>
-          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rejected')}>
-            Reject
-          </button>
-          <button
-            className="btn btn-outline"
-            onClick={() => {
-              setSelected(null);
-              setNotes('');
-              setError('');
-            }}
-          >
-            Back
-          </button>
+          {(selected.status === 'UnderReview') && (
+            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>Approve</button>
+          )}
+          {(selected.type === 'Permit' && selected.status === 'UnderReview' && selected.linkedDocumentId) && (
+            <button className="btn btn-primary" onClick={() => handleAction(selected, 'reject-documents')}>Reject Documents</button>
+          )}
+          {(selected.status === 'UnderReview') && (
+            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>Reject</button>
+          )}
+          {(selected.type === 'Permit' && selected.status === 'OfficerAssigned') && (
+            <button className="btn btn-primary" onClick={() => handleAction(selected, 'request-documents')}>Request Documents</button>
+          )}
+          {(selected.status === 'OfficerAssigned') && (
+            <button className="btn btn-outline" onClick={() => handleAction(selected, 'start-review')}>Start Review</button>
+          )}
+          <button className="btn btn-outline" onClick={() => { setSelected(null); setNotes(''); setError(''); }}>Back</button>
         </div>
       </div>
     );
@@ -280,6 +287,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
                 <th>Type</th>
                 <th>Title</th>
                 <th>Status</th>
+                <th>Progress</th>
                 <th>Created</th>
                 <th>Action</th>
               </tr>
@@ -287,17 +295,11 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <tbody>
               {paged.map((r) => (
                 <tr key={r.id}>
-                  <td>{r.type || '—'}</td>
-                  <td className="desc-cell">{r.title || '—'}</td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
-                      }}
-                    >
-                      {r.status || 'Unknown'}
-                    </span>
+                  <td>{r.type}</td>
+                  <td className="desc-cell">{r.title}</td>
+                  <td>{r.status}</td>
+                  <td style={{ minWidth: '180px' }}>
+                    <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                   </td>
                   <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                   <td>
@@ -345,21 +347,16 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await documentApi.getMyAssignments();
-      setDocuments(
-        (data || []).filter(
-          (d) => d.status !== 'Ready' && d.status !== 'Rejected' && d.status !== 'Collected'
-        )
-      );
-    } catch {
-      /* empty */
-    } finally {
+      const { data } = await documentApi.getAssignedToMe();
+      // Only show actionable items — hide already completed/rejected
+      setDocuments(data.filter((d) => d.status !== 'Approved' && d.status !== 'Rejected'));
+    } catch { /* empty */ } finally {
       setLoading(false);
     }
   };
 
-  const handleAction = async (id, status) => {
-    if (status === 'Rejected' && !reason.trim()) {
+  const handleAction = async (document, action) => {
+    if (action === 'reject' && !reason.trim()) {
       setError('You must provide a reason when rejecting a document.');
       return;
     }
@@ -367,10 +364,13 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
     setError('');
 
     try {
-      await documentApi.updateStatus(id, {
-        status,
-        rejectionReason: reason || undefined,
-      });
+      if (action === 'start-review') {
+        await documentApi.startReview(document.id);
+      } else if (action === 'approve') {
+        await documentApi.approve(document.id);
+      } else if (action === 'reject') {
+        await documentApi.reject(document.id, reason);
+      }
       setSelected(null);
       setReason('');
       await load();
@@ -398,50 +398,16 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
   if (selected) {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>Document Details</h2>
-        </div>
-
+        <h2>Document Details</h2>
         {error && <div className="alert alert-error">{error}</div>}
-
-        <div className="profile-info-grid">
-          <div className="info-item">
-            <span className="info-label">Type</span>
-            <span className="info-value">
-              {(selected.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Title</span>
-            <span className="info-value">{selected.title || '—'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Status</span>
-            <span className="info-value">
-              <span
-                className="badge"
-                style={{
-                  backgroundColor: STATUS_COLORS[selected.status] || '#6b7280',
-                }}
-              >
-                {selected.status || 'Unknown'}
-              </span>
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Created</span>
-            <span className="info-value">
-              {selected.createdAt ? new Date(selected.createdAt).toLocaleDateString() : '—'}
-            </span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Citizen ID</span>
-            <span className="info-value id-cell-inline">{selected.citizenUserId || '—'}</span>
-          </div>
-          <div className="info-item">
-            <span className="info-label">Reference #</span>
-            <span className="info-value">{selected.referenceNumber || '—'}</span>
-          </div>
+        <div className="detail-grid">
+          <div><strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}</div>
+          <div><strong>Title:</strong> {selected.title}</div>
+          <div><strong>Status:</strong> {selected.status}</div>
+          <div style={{ gridColumn: '1 / span 2' }}><strong>Progress:</strong> <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} /></div>
+          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
+          <div><strong>Reference #:</strong> {selected.referenceNumber || '—'}</div>
         </div>
 
         {selected.description && (
@@ -469,22 +435,16 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          <button className="btn btn-success" onClick={() => handleAction(selected.id, 'Ready')}>
-            Approve
-          </button>
-          <button className="btn btn-danger" onClick={() => handleAction(selected.id, 'Rejected')}>
-            Reject
-          </button>
-          <button
-            className="btn btn-outline"
-            onClick={() => {
-              setSelected(null);
-              setReason('');
-              setError('');
-            }}
-          >
-            Back
-          </button>
+          {(selected.status === 'Submitted') && (
+            <button className="btn btn-primary" onClick={() => handleAction(selected, 'start-review')}>Start Review</button>
+          )}
+          {(selected.status === 'UnderReview') && (
+            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>Approve</button>
+          )}
+          {(selected.status === 'UnderReview') && (
+            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>Reject</button>
+          )}
+          <button className="btn btn-outline" onClick={() => { setSelected(null); setReason(''); setError(''); }}>Back</button>
         </div>
       </div>
     );
@@ -526,6 +486,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
                 <th>Type</th>
                 <th>Title</th>
                 <th>Status</th>
+                <th>Progress</th>
                 <th>Created</th>
                 <th>Action</th>
               </tr>
@@ -533,17 +494,11 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
             <tbody>
               {paged.map((d) => (
                 <tr key={d.id}>
-                  <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
-                  <td className="desc-cell">{d.title || '—'}</td>
-                  <td>
-                    <span
-                      className="badge"
-                      style={{
-                        backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
-                      }}
-                    >
-                      {d.status || 'Unknown'}
-                    </span>
+                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td className="desc-cell">{d.title}</td>
+                  <td>{d.status}</td>
+                  <td style={{ minWidth: '180px' }}>
+                    <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
                   </td>
                   <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
                   <td>
