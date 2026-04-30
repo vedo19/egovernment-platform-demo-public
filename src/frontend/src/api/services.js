@@ -20,13 +20,10 @@ export const serviceRequestApi = {
   create: (data) => client.post('/api/servicerequests', data),
   getMyRequests: () => client.get('/api/servicerequests/my-requests'),
   getMyAssignments: () => client.get('/api/servicerequests/my-assignments'),
-  getAll: (status) =>
-    client.get('/api/servicerequests', { params: status ? { status } : {} }),
+  getAll: (status) => client.get('/api/servicerequests', { params: status ? { status } : {} }),
   getById: (id) => client.get(`/api/servicerequests/${id}`),
-  updateStatus: (id, data) =>
-    client.put(`/api/servicerequests/${id}/status`, data),
-  assignOfficer: (id, officerId) =>
-    client.put(`/api/servicerequests/${id}/assign`, { officerId }),
+  updateStatus: (id, data) => client.put(`/api/servicerequests/${id}/status`, data),
+  assignOfficer: (id, officerId) => client.put(`/api/servicerequests/${id}/assign`, { officerId }),
 };
 
 export const documentApi = {

@@ -10,6 +10,7 @@ const DOC_TYPES = [
   'DeathCertificate',
   'DrivingLicense',
 ];
+
 const STATUS_COLORS = {
   Pending: '#f59e0b',
   InProgress: '#3b82f6',
@@ -19,29 +20,100 @@ const STATUS_COLORS = {
   Collected: '#6b7280',
   Rejected: '#ef4444',
 };
+
 const PAGE_SIZE = 5;
 
 export default function CitizenDashboard() {
   const { user } = useAuth();
   const [tab, setTab] = useState('profile');
+  const [requestCount, setRequestCount] = useState(0);
+  const [documentCount, setDocumentCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  const loadSummary = async () => {
+    try {
+      const [requestsRes, documentsRes] = await Promise.all([
+        serviceRequestApi.getMyRequests(),
+        documentApi.getMyDocuments(),
+      ]);
+
+      const requests = requestsRes.data || [];
+      const documents = documentsRes.data || [];
+
+      setRequestCount(requests.length);
+      setDocumentCount(documents.length);
+
+      const pendingItems = [...requests, ...documents].filter(
+        (item) =>
+          item?.status === 'Pending' ||
+          item?.status === 'InProgress' ||
+          item?.status === 'Processing'
+      );
+
+      setPendingCount(pendingItems.length);
+    } catch {
+      setRequestCount(0);
+      setDocumentCount(0);
+      setPendingCount(0);
+    }
+  };
+
+  useEffect(() => {
+    loadSummary();
+  }, []);
 
   return (
-    <div>
-      <h1>Welcome, {user.fullName}</h1>
+    <div className="dashboard-page citizen-dashboard">
+      <div className="page-hero">
+        <div>
+          <h1>Welcome, {user?.fullName}</h1>
+          <p className="subtitle">
+            Manage your profile, submit service requests, and track official documents in one place.
+          </p>
+        </div>
+      </div>
+
+      <div className="stats-grid">
+        <div className="card stat-card">
+          <span className="stat-label">Service Requests </span>
+          <strong className="stat-value">{requestCount}</strong>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-label">Documents </span>
+          <strong className="stat-value">{documentCount}</strong>
+        </div>
+        <div className="card stat-card">
+          <span className="stat-label">Pending Items </span>
+          <strong className="stat-value">{pendingCount}</strong>
+        </div>
+      </div>
+
       <div className="tabs">
-        <button className={tab === 'profile' ? 'tab active' : 'tab'} onClick={() => setTab('profile')}>
+        <button
+          className={tab === 'profile' ? 'tab active' : 'tab'}
+          onClick={() => setTab('profile')}
+        >
           Profile
         </button>
-        <button className={tab === 'requests' ? 'tab active' : 'tab'} onClick={() => setTab('requests')}>
+        <button
+          className={tab === 'requests' ? 'tab active' : 'tab'}
+          onClick={() => setTab('requests')}
+        >
           Service Requests
         </button>
-        <button className={tab === 'documents' ? 'tab active' : 'tab'} onClick={() => setTab('documents')}>
+        <button
+          className={tab === 'documents' ? 'tab active' : 'tab'}
+          onClick={() => setTab('documents')}
+        >
           Documents
         </button>
       </div>
-      {tab === 'profile' && <ProfileTab />}
-      {tab === 'requests' && <RequestsTab />}
-      {tab === 'documents' && <DocumentsTab />}
+
+      <div className="dashboard-section">
+        {tab === 'profile' && <ProfileTab />}
+        {tab === 'requests' && <RequestsTab onRefreshSummary={loadSummary} />}
+        {tab === 'documents' && <DocumentsTab onRefreshSummary={loadSummary} />}
+      </div>
     </div>
   );
 }
@@ -50,7 +122,14 @@ function ProfileTab() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ phoneNumber: '', address: '', dateOfBirth: '', nationalId: '', city: '', gender: '' });
+  const [form, setForm] = useState({
+    phoneNumber: '',
+    address: '',
+    dateOfBirth: '',
+    nationalId: '',
+    city: '',
+    gender: '',
+  });
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -82,30 +161,41 @@ function ProfileTab() {
     e.preventDefault();
     setError('');
     setMsg('');
+
     try {
       if (profile) {
         await citizenApi.updateProfile(form);
-        setMsg('Profile updated');
+        setMsg('Profile updated successfully');
       } else {
         await citizenApi.createProfile(form);
-        setMsg('Profile created');
+        setMsg('Profile created successfully');
       }
+
       setEditing(false);
       await loadProfile();
     } catch (err) {
       const d = err.response?.data;
-      setError(typeof d === 'string' ? d : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to save profile');
+      setError(
+        typeof d === 'string'
+          ? d
+          : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to save profile'
+      );
     }
   };
 
   if (loading) {
-    return <div className="card"><p className="loading-text">Loading profile...</p></div>;
+    return (
+      <div className="card">
+        <p className="loading-text">Loading profile...</p>
+      </div>
+    );
   }
 
   if (!profile && !editing) {
     return (
-      <div className="card">
-        <p>No profile found.</p>
+      <div className="card empty-state-card">
+        <h2>Profile Information</h2>
+        <p className="subtitle">Complete your personal information to use services more easily.</p>
         <button className="btn btn-primary" onClick={() => setEditing(true)}>
           Create Profile
         </button>
@@ -116,40 +206,82 @@ function ProfileTab() {
   if (editing) {
     return (
       <div className="card">
-        <h2>{profile ? 'Edit Profile' : 'Create Profile'}</h2>
+        <div className="section-header">
+          <h2>{profile ? 'Edit Profile' : 'Create Profile'}</h2>
+        </div>
+
         {error && <div className="alert alert-error">{error}</div>}
+        {msg && <div className="alert alert-success">{msg}</div>}
+
         <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label>Phone Number</label>
-            <input value={form.phoneNumber} onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })} required />
+          <div className="detail-grid">
+            <div className="form-group">
+              <label>Phone Number</label>
+              <input
+                value={form.phoneNumber}
+                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>City</label>
+              <input
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Address</label>
+              <input
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Date of Birth</label>
+              <input
+                type="date"
+                value={form.dateOfBirth}
+                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>National ID</label>
+              <input
+                value={form.nationalId}
+                onChange={(e) => setForm({ ...form, nationalId: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Gender</label>
+              <select
+                value={form.gender}
+                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                required
+              >
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
           </div>
-          <div className="form-group">
-            <label>Address</label>
-            <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>Date of Birth</label>
-            <input type="date" value={form.dateOfBirth} onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>National ID</label>
-            <input value={form.nationalId} onChange={(e) => setForm({ ...form, nationalId: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>City</label>
-            <input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} required />
-          </div>
-          <div className="form-group">
-            <label>Gender</label>
-            <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} required>
-              <option value="">Select...</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
+
           <div className="btn-group">
-            <button type="submit" className="btn btn-primary">Save</button>
-            <button type="button" className="btn btn-outline" onClick={() => setEditing(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary">
+              Save Profile
+            </button>
+            <button type="button" className="btn btn-outline" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
           </div>
         </form>
       </div>
@@ -158,28 +290,54 @@ function ProfileTab() {
 
   return (
     <div className="card">
-      {msg && <div className="alert alert-success">{msg}</div>}
-      <h2>Your Profile</h2>
-      <div className="detail-grid">
-        <div><strong>Phone:</strong> {profile.phoneNumber}</div>
-        <div><strong>Address:</strong> {profile.address}</div>
-        <div><strong>Date of Birth:</strong> {profile.dateOfBirth}</div>
-        <div><strong>National ID:</strong> {profile.nationalId}</div>
-        <div><strong>City:</strong> {profile.city}</div>
-        <div><strong>Gender:</strong> {profile.gender}</div>
+      <div className="section-header">
+        <h2>Your Profile</h2>
+        <button className="btn btn-primary" onClick={() => setEditing(true)}>
+          Edit Profile
+        </button>
       </div>
-      <button className="btn btn-primary" onClick={() => setEditing(true)}>
-        Edit Profile
-      </button>
+
+      {msg && <div className="alert alert-success">{msg}</div>}
+
+      <div className="profile-info-grid">
+        <div className="info-item">
+          <span className="info-label">Phone Number</span>
+          <span className="info-value">{profile.phoneNumber || '—'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">City</span>
+          <span className="info-value">{profile.city || '—'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">Address</span>
+          <span className="info-value">{profile.address || '—'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">Date of Birth</span>
+          <span className="info-value">{profile.dateOfBirth || '—'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">National ID</span>
+          <span className="info-value">{profile.nationalId || '—'}</span>
+        </div>
+        <div className="info-item">
+          <span className="info-label">Gender</span>
+          <span className="info-value">{profile.gender || '—'}</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-function RequestsTab() {
+function RequestsTab({ onRefreshSummary }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showing, setShowing] = useState('list');
-  const [form, setForm] = useState({ type: 'Permit', title: '', description: '' });
+  const [form, setForm] = useState({
+    type: 'Permit',
+    title: '',
+    description: '',
+  });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -193,7 +351,9 @@ function RequestsTab() {
     try {
       const { data } = await serviceRequestApi.getMyRequests();
       setRequests(data);
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -201,21 +361,32 @@ function RequestsTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
       await serviceRequestApi.create(form);
       setForm({ type: 'Permit', title: '', description: '' });
       setShowing('list');
       await loadRequests();
+      onRefreshSummary?.();
     } catch (err) {
       const d = err.response?.data;
-      setError(typeof d === 'string' ? d : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to create request');
+      setError(
+        typeof d === 'string'
+          ? d
+          : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to create request'
+      );
     }
   };
 
   const filtered = requests.filter((r) => {
     const q = search.toLowerCase();
-    return !q || r.title.toLowerCase().includes(q) || r.type.toLowerCase().includes(q) || r.status.toLowerCase().includes(q);
+    const title = (r.title || '').toLowerCase();
+    const type = (r.type || '').toLowerCase();
+    const status = (r.status || '').toLowerCase();
+
+    return !q || title.includes(q) || type.includes(q) || status.includes(q);
   });
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -223,28 +394,50 @@ function RequestsTab() {
   if (showing === 'new') {
     return (
       <div className="card">
-        <h2>New Service Request</h2>
+        <div className="section-header">
+          <h2>New Service Request</h2>
+        </div>
+
         {error && <div className="alert alert-error">{error}</div>}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Type</label>
             <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
               {REQUEST_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
           </div>
+
           <div className="form-group">
             <label>Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
           </div>
+
           <div className="form-group">
             <label>Description</label>
-            <textarea rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} required />
+            <textarea
+              rows={4}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              required
+            />
           </div>
+
           <div className="btn-group">
-            <button type="submit" className="btn btn-primary">Submit</button>
-            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>Cancel</button>
+            <button type="submit" className="btn btn-primary">
+              Submit Request
+            </button>
+            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>
+              Cancel
+            </button>
           </div>
         </form>
       </div>
@@ -252,18 +445,35 @@ function RequestsTab() {
   }
 
   return (
-    <div>
+    <div className="card">
       <div className="section-header">
-        <h2>My Service Requests</h2>
+        <div>
+          <h2>My Service Requests</h2>
+          <p className="subtitle">Track request status and review any administrative notes.</p>
+        </div>
+
         <div className="header-actions">
-          <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <button className="btn btn-primary" onClick={() => setShowing('new')}>New Request</button>
+          <input
+            className="search-input"
+            placeholder="Search requests..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <button className="btn btn-primary" onClick={() => setShowing('new')}>
+            New Request
+          </button>
         </div>
       </div>
+
       {loading ? (
         <p className="loading-text">Loading requests...</p>
       ) : filtered.length === 0 ? (
-        <p className="empty">{search ? 'No matching requests.' : 'No service requests yet.'}</p>
+        <div className="empty-state-card">
+          <p className="empty">{search ? 'No matching requests.' : 'No service requests yet.'}</p>
+        </div>
       ) : (
         <>
           <table className="data-table">
@@ -279,24 +489,36 @@ function RequestsTab() {
             <tbody>
               {paged.map((r) => (
                 <tr key={r.id}>
-                  <td>{r.type}</td>
-                  <td>{r.title}</td>
+                  <td>{r.type || '—'}</td>
+                  <td>{r.title || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[r.status] || '#6b7280' }}>
-                      {r.status}
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[r.status] || '#6b7280',
+                      }}
+                    >
+                      {r.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="desc-cell">{r.adminNotes || '—'}</td>
-                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+
           {totalPages > 1 && (
             <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {safePage} of {totalPages}
+              </span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                Next
+              </button>
             </div>
           )}
         </>
@@ -305,11 +527,15 @@ function RequestsTab() {
   );
 }
 
-function DocumentsTab() {
+function DocumentsTab({ onRefreshSummary }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showing, setShowing] = useState('list');
-  const [form, setForm] = useState({ documentType: 'BirthCertificate', title: '', description: '' });
+  const [form, setForm] = useState({
+    documentType: 'BirthCertificate',
+    title: '',
+    description: '',
+  });
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -323,7 +549,9 @@ function DocumentsTab() {
     try {
       const { data } = await documentApi.getMyDocuments();
       setDocuments(data);
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -331,14 +559,23 @@ function DocumentsTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
     try {
       await documentApi.create(form);
       setForm({ documentType: 'BirthCertificate', title: '', description: '' });
       setShowing('list');
       await loadDocuments();
+      onRefreshSummary?.();
     } catch (err) {
       const d = err.response?.data;
-      setError(typeof d === 'string' ? d : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to create document request');
+      setError(
+        typeof d === 'string'
+          ? d
+          : d?.message ||
+              d?.title ||
+              JSON.stringify(d?.errors || d) ||
+              'Failed to create document request'
+      );
     }
   };
 
@@ -360,9 +597,16 @@ function DocumentsTab() {
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = d.documentType.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
-    return !q || typeName.includes(q) || d.status.toLowerCase().includes(q) || (d.referenceNumber || '').toLowerCase().includes(q);
+    const typeName = (d.documentType || '')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
+    const status = (d.status || '').toLowerCase();
+    const referenceNumber = (d.referenceNumber || '').toLowerCase();
+
+    return !q || typeName.includes(q) || status.includes(q) || referenceNumber.includes(q);
   });
+
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -370,28 +614,52 @@ function DocumentsTab() {
   if (showing === 'new') {
     return (
       <div className="card">
-        <h2>Request New Document</h2>
+        <div className="section-header">
+          <h2>Request New Document</h2>
+        </div>
+
         {error && <div className="alert alert-error">{error}</div>}
+
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Document Type</label>
-            <select value={form.documentType} onChange={(e) => setForm({ ...form, documentType: e.target.value })}>
+            <select
+              value={form.documentType}
+              onChange={(e) => setForm({ ...form, documentType: e.target.value })}
+            >
               {DOC_TYPES.map((t) => (
-                <option key={t} value={t}>{t.replace(/([A-Z])/g, ' $1').trim()}</option>
+                <option key={t} value={t}>
+                  {t.replace(/([A-Z])/g, ' $1').trim()}
+                </option>
               ))}
             </select>
           </div>
+
           <div className="form-group">
             <label>Title</label>
-            <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
+            <input
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              required
+            />
           </div>
+
           <div className="form-group">
             <label>Description (optional)</label>
-            <textarea rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <textarea
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
           </div>
+
           <div className="btn-group">
-            <button type="submit" className="btn btn-primary">Submit</button>
-            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>Cancel</button>
+            <button type="submit" className="btn btn-primary">
+              Submit Request
+            </button>
+            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>
+              Cancel
+            </button>
           </div>
         </form>
       </div>
@@ -399,18 +667,37 @@ function DocumentsTab() {
   }
 
   return (
-    <div>
+    <div className="card">
       <div className="section-header">
-        <h2>My Documents</h2>
+        <div>
+          <h2>My Documents</h2>
+          <p className="subtitle">Track requested documents and follow their processing status.</p>
+        </div>
+
         <div className="header-actions">
-          <input className="search-input" placeholder="Search..." value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-          <button className="btn btn-primary" onClick={() => setShowing('new')}>Request Document</button>
+          <input
+            className="search-input"
+            placeholder="Search documents..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          <button className="btn btn-primary" onClick={() => setShowing('new')}>
+            Request Document
+          </button>
         </div>
       </div>
+
       {loading ? (
         <p className="loading-text">Loading documents...</p>
       ) : filtered.length === 0 ? (
-        <p className="empty">{search ? 'No matching documents.' : 'No documents requested yet.'}</p>
+        <div className="empty-state-card">
+          <p className="empty">
+            {search ? 'No matching documents.' : 'No documents requested yet.'}
+          </p>
+        </div>
       ) : (
         <>
           <table className="data-table">
@@ -418,7 +705,7 @@ function DocumentsTab() {
               <tr>
                 <th>Type</th>
                 <th>Status</th>
-                <th>Reason</th>
+                <th>Rejection Reason</th>
                 <th>Reference #</th>
                 <th>Expires</th>
                 <th>Created</th>
@@ -428,10 +715,15 @@ function DocumentsTab() {
             <tbody>
               {paged.map((d) => (
                 <tr key={d.id}>
-                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
+                  <td>{(d.documentType || '').replace(/([A-Z])/g, ' $1').trim() || '—'}</td>
                   <td>
-                    <span className="badge" style={{ backgroundColor: STATUS_COLORS[d.status] || '#6b7280' }}>
-                      {d.status}
+                    <span
+                      className="badge"
+                      style={{
+                        backgroundColor: STATUS_COLORS[d.status] || '#6b7280',
+                      }}
+                    >
+                      {d.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
@@ -447,11 +739,18 @@ function DocumentsTab() {
               ))}
             </tbody>
           </table>
+
           {totalPages > 1 && (
             <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>Next</button>
+              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+                Previous
+              </button>
+              <span>
+                Page {safePage} of {totalPages}
+              </span>
+              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+                Next
+              </button>
             </div>
           )}
         </>

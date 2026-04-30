@@ -91,25 +91,43 @@ public class DocumentsController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    // ── GET /api/documents/{id}/download ── Download approved document
-    [HttpGet("{id:guid}/download")]
-    [Authorize]
-    public async Task<IActionResult> Download(Guid id)
+    [HttpPost("{id:guid}/upload")]
+    [Authorize(Roles = "Citizen")]
+    [RequestSizeLimit(50_000_000)]
+    public async Task<IActionResult> UploadFile(Guid id, [FromForm] IFormFile file)
     {
-        var userId = GetUserId();
-        var role = User.FindFirst("role")?.Value ?? "";
+        if (file is null || file.Length == 0)
+            return BadRequest(new { error = "File is required." });
 
-        var (fileContent, fileName, contentType) = await _documentService.GetDocumentFileAsync(id, userId, role);
-        return File(fileContent, contentType, fileName);
+        var document = await _documentService.GetByIdAsync(id);
+        if (document is null) return NotFound();
+
+        if (document.CitizenUserId != GetUserId())
+            return Forbid();
+
+        var savedPath = await _documentService.SaveAttachmentAsync(id, file);
+        if (savedPath is null) return NotFound();
+
+        return Ok(new { documentId = id, fileName = Path.GetFileName(savedPath) });
     }
 
-    // ── GET /api/documents/{id}/preview ── Officer/Admin previews draft document
-    [HttpGet("{id:guid}/preview")]
-    [Authorize(Roles = "Admin,Officer")]
-    public async Task<IActionResult> Preview(Guid id)
+    [HttpGet("{id:guid}/file")]
+    [Authorize]
+    public async Task<IActionResult> DownloadFile(Guid id)
     {
-        var (fileContent, fileName, contentType) = await _documentService.GeneratePreviewAsync(id);
-        return File(fileContent, contentType, fileName);
+        var document = await _documentService.GetByIdAsync(id);
+        if (document is null) return NotFound();
+
+        var role = User.FindFirst("role")?.Value;
+        if (role is "Citizen" && document.CitizenUserId != GetUserId())
+            return Forbid();
+
+        var filePath = await _documentService.GetAttachmentPathAsync(id);
+        if (string.IsNullOrWhiteSpace(filePath) || !System.IO.File.Exists(filePath))
+            return NotFound(new { error = "No uploaded file found for this document." });
+
+        var fileName = Path.GetFileName(filePath);
+        return PhysicalFile(filePath, "application/octet-stream", fileName);
     }
 
     // ── GET /api/documents/health ──

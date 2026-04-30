@@ -1,0 +1,48 @@
+name: Render Auto Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-auto-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: auth-service
+            hook_secret: RENDER_DEPLOY_HOOK_AUTH_SERVICE
+          - service: citizen-service
+            hook_secret: RENDER_DEPLOY_HOOK_CITIZEN_SERVICE
+          - service: service-request-service
+            hook_secret: RENDER_DEPLOY_HOOK_SERVICE_REQUEST_SERVICE
+          - service: document-service
+            hook_secret: RENDER_DEPLOY_HOOK_DOCUMENT_SERVICE
+          - service: api-gateway
+            hook_secret: RENDER_DEPLOY_HOOK_API_GATEWAY
+          - service: frontend
+            hook_secret: RENDER_DEPLOY_HOOK_FRONTEND
+
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          HOOK_URL: ${{ secrets[matrix.hook_secret] }}
+          SERVICE_NAME: ${{ matrix.service }}
+        run: |
+          if [ -z "$HOOK_URL" ]; then
+            echo "Missing deploy hook secret for $SERVICE_NAME (${{ matrix.hook_secret }})."
+            exit 1
+          fi
+
+          echo "Triggering deploy for $SERVICE_NAME"
+          curl -fsSL -X POST "$HOOK_URL"
+          echo "Deploy hook triggered for $SERVICE_NAME"

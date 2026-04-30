@@ -1,0 +1,84 @@
+name: Frontend Deploy
+
+on:
+  # Disabled until fully implemented
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - 'src/frontend/**'
+  #     - 'k8s/services/frontend.yaml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: frontend-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Run preflight checks
+        uses: ./.github/actions/run-preflight
+        with:
+          ingress-host: ${{ secrets.INGRESS_HOST }}
+
+  deploy:
+    needs: preflight
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/egovernment-platform-demo-public
+      IMAGE_TAG: ${{ github.sha }}
+      NAMESPACE: egovernment
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Build and push frontend image
+        run: |
+          docker build -f src/frontend/Dockerfile -t "$IMAGE_PREFIX/frontend:$IMAGE_TAG" -t "$IMAGE_PREFIX/frontend:latest" src/frontend
+          docker push "$IMAGE_PREFIX/frontend:$IMAGE_TAG"
+          docker push "$IMAGE_PREFIX/frontend:latest"
+
+      - name: Render frontend manifest
+        run: |
+          set -euo pipefail
+
+          rm -rf _deploy
+          mkdir -p _deploy/k8s/services
+
+          cp k8s/services/frontend.yaml _deploy/k8s/services/frontend.yaml
+          sed -i "s|image: frontend:dev|image: ${IMAGE_PREFIX}/frontend:${IMAGE_TAG}|g" _deploy/k8s/services/frontend.yaml
+
+      - name: Apply frontend service
+        run: |
+          kubectl apply -f _deploy/k8s/services/frontend.yaml
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/frontend -n "$NAMESPACE" --timeout=10m
+
+      - name: Show final status
+        run: |
+          kubectl get pods -n "$NAMESPACE"
+          kubectl get svc -n "$NAMESPACE"

@@ -1,0 +1,37 @@
+name: Preflight Check
+
+on:
+  workflow_dispatch:
+    inputs:
+      ingress_host:
+        description: Public hostname or IPv4-based host for the cluster ingress
+        required: true
+        default: egovernment.example.com
+      storage_class_name:
+        description: Optional storage class to validate (leave empty to require default)
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup cluster access
+        uses: ./.github/actions/setup-ghcr-kube
+        with:
+          ghcr-username: ${{ github.actor }}
+          ghcr-token: ${{ secrets.GITHUB_TOKEN }}
+          kube-config-b64: ${{ secrets.KUBE_CONFIG_B64 }}
+
+      - name: Run preflight checks
+        uses: ./.github/actions/run-preflight
+        with:
+          ingress-host: ${{ github.event.inputs.ingress_host || secrets.INGRESS_HOST }}
+          storage-class-name: ${{ github.event.inputs.storage_class_name }}

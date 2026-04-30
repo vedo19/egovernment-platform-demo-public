@@ -15,6 +15,12 @@ public class CreateDocumentRequestDto
     public string? Description { get; set; }
 }
 
+public class UploadDocumentFileDto
+{
+    [Required]
+    public IFormFile File { get; set; } = default!;
+}
+
 // ── Update Status (Admin / Officer) ──
 public class UpdateDocumentStatusDto
 {
