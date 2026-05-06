@@ -20,10 +20,12 @@ public class Document
     public string? Description { get; set; }
 
     [Required, MaxLength(30)]
-    public string Status { get; set; } = "Pending"; // Pending, Processing, Ready, Rejected, Collected
+    public string Status { get; set; } = "Submitted";
 
     [MaxLength(1000)]
     public string? RejectionReason { get; set; }
+
+    public Guid? AssignedOfficerId { get; set; }
 
     public Guid? ProcessedByOfficerId { get; set; }
 

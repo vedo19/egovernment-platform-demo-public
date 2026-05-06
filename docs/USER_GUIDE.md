@@ -130,13 +130,22 @@ This is where you apply for permits or file complaints.
 Your requests appear in a table showing:
 - **Type** — Permit or Complaint
 - **Title** — your request title
-- **Status** — current state:
-  - 🟡 **Pending** — submitted, waiting for review
-  - 🔵 **In Progress** — being processed by an officer
-  - 🟢 **Resolved** — completed/approved
-  - 🔴 **Rejected** — denied (check the Notes column for the reason)
-- **Notes** — feedback from the officer (e.g., rejection reason or additional info)
+- **Status** — current workflow state:
+   - Permit: Submitted, OfficerAssigned, AwaitingDocuments, UnderReview, DocumentsRejected, Approved, Rejected
+   - Complaint: Submitted, OfficerAssigned, UnderReview, Approved, Rejected
+- **Progress** — visual percentage bar from submission to final decision
+- **Officer Note** — appears when documents are requested or rejected
+- **Upload PDF** — appears only when status is AwaitingDocuments or DocumentsRejected
+- **Uploaded PDF** — lets you open previously uploaded file
 - **Created** — when you submitted it
+
+**Permit document cycle:**
+1. Officer requests document with note.
+2. Citizen uploads PDF.
+3. Officer can view/download PDF and either:
+    - approve request, or
+    - reject documents (citizen can re-upload), or
+    - reject request as final.
 
 ### Documents Tab
 
@@ -158,11 +167,11 @@ This is where you request official documents.
 Your document requests appear in a table showing:
 - **Type** — which document you requested
 - **Status**:
-  - 🟡 **Pending** — submitted, waiting for review
-  - 🔵 **Processing** — being prepared
-  - 🟢 **Ready** — document is ready for pickup
-  - ⚪ **Collected** — you've picked it up
+   - Submitted
+   - UnderReview
+   - Approved
   - 🔴 **Rejected** — request was denied
+- **Progress** — visual workflow percentage bar
 - **Reason** — if rejected, the officer's reason will appear here
 - **Reference #** — when your document is ready, you'll get a reference number (e.g., "MC-20260307-ABC12345")
 - **Created** — when you submitted the request
@@ -228,14 +237,23 @@ Shows only the service requests that have been assigned to you by an Admin.
 1. Click the **"Review"** button on any request
 2. You'll see the full details: type, title, description, citizen ID, creation date
 3. Read through the citizen's description carefully
+4. If a supporting PDF was uploaded, use **View Submitted PDF** or **Download PDF**
 
 **Approve a request:**
 1. Optionally type notes in the text box (e.g., “Approved, permit valid for 12 months”)
-2. Click **"Approve"** — the request status changes to "Resolved"
+2. Click **"Approve"** — the request status changes to "Approved"
 
 **Reject a request:**
 1. You **must** type a rejection reason in the text box (e.g., "Missing construction blueprints required by regulation 3.2")
 2. Click **"Reject"** — the citizen will see this reason on their dashboard
+
+**Request document for permit:**
+1. In OfficerAssigned permit cases, click **Request Documents**.
+2. Provide a clear note describing required PDF.
+
+**Reject only documents (resubmittable):**
+1. In permit UnderReview with uploaded file, click **Reject Documents**.
+2. Citizen status becomes DocumentsRejected and can upload again.
 
 ### My Documents Tab
 
@@ -279,6 +297,9 @@ A: Processing times depend on the type of request and current workload. Check yo
 
 **Q: Why was my request rejected?**
 A: An officer reviewed your request and provided a reason. Check the **"Notes"** column for service requests or the **"Reason"** column for documents on your dashboard to see the officer's explanation. You may submit a new request with corrected information.
+
+**Q: How can we test this quickly with Postman?**
+A: Import `docs/postman/Workflow-Demo.postman_collection.json`, set collection variables (baseUrl, user credentials, tokens, ids), then run requests in sequence: login users, create permit, assign officer, request documents, upload PDF, reject documents, reupload, approve.
 
 **Q: I see a blank screen. What do I do?**
 A: Try clearing your browser's cache (Ctrl+Shift+Delete), or open the page in a private/incognito window. If that doesn't work, make sure the server is running.

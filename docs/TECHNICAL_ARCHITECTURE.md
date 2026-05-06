@@ -170,65 +170,98 @@ CitizensController
 ServiceRequestsController
   ├── POST /              → Create new request (Citizen)
   ├── GET  /my-requests   → Get citizen's own requests
-  ├── GET  /my-assignments → Get requests assigned to current officer (Officer only)
+   ├── GET  /my-assignments → Get requests assigned to current officer (Officer only, legacy)
+   ├── GET  /assigned-to-me → Get requests assigned to current officer (Officer)
+   ├── GET  /all           → List all requests (Admin)
   ├── GET  /              → List all requests with optional ?status= filter (Admin/Officer)
   ├── GET  /{id}          → Get single request (owner check for Citizens)
-  ├── PUT  /{id}/status   → Update status (Admin/Officer)
-  └── PUT  /{id}/assign   → Assign officer (Admin only)
+   ├── PUT  /{id}/status   → Update status (Admin/Officer, legacy compatibility)
+   ├── PUT  /{id}/assign   → Assign officer (Admin only, legacy)
+   ├── PUT  /{id}/assign-officer → Assign officer (Admin)
+   ├── PUT  /{id}/request-documents → Request permit PDF (Admin/Officer)
+   ├── PUT  /{id}/approve  → Approve request (Admin/Officer)
+   ├── PUT  /{id}/reject-documents → Reject permit document only (Admin/Officer)
+   ├── PUT  /{id}/reject   → Final rejection (Admin/Officer)
+   └── POST /{id}/upload-document → Citizen uploads PDF (multipart/form-data)
                                     │
                             ServiceRequestDbContext → ServiceRequests table
 ```
 
-**Status flow:**
+**Workflow status flow:**
+
+Permit:
+
 ```
-Pending → InProgress → Resolved
-                    → Rejected
+Submitted → OfficerAssigned → AwaitingDocuments → UnderReview → Approved
+                                                             ↘ citizen upload ↗
+UnderReview → DocumentsRejected → UnderReview
+UnderReview → Rejected (final)
+```
+
+Complaint:
+
+```
+Submitted → OfficerAssigned → UnderReview → Approved
+                                                          ↘ Rejected (final)
 ```
 
 **Key details:**
 - `Type` field: "Permit" or "Complaint"
 - Citizens can only view their own requests (enforced in controller by comparing CitizenUserId with JWT sub claim)
-- When an Admin/Officer updates status, their ID is recorded as `AssignedOfficerId`
-- `ResolvedAt` is automatically set when status changes to Resolved
+- Progress is computed on read: `ProgressPercentage` + `ProgressColor`
+- Permit document resubmission is supported via `DocumentsRejected`
+- Request now stores `OfficerNote` and `LinkedDocumentId`
+- `ResolvedAt` is automatically set when status reaches final states
+- ServiceRequest orchestrates PDF storage through DocumentService internal API call
 
 **Database:** `request_db` on port 5434
-- Table: `ServiceRequests` — Id, CitizenUserId, Type, Title, Description, Status, AdminNotes, AssignedOfficerId, CreatedAt, UpdatedAt, ResolvedAt
+- Table: `ServiceRequests` — Id, CitizenUserId, Type, Title, Description, Status, AdminNotes, OfficerNote, AssignedOfficerId, LinkedDocumentId, CreatedAt, UpdatedAt, ResolvedAt
 
 ---
 
 ### Document Service (port 5004)
 
-**Purpose:** Citizens request official documents; admins/officers process them and generate reference numbers.
+**Purpose:** Citizens request official documents; admins/officers process them and generate reference numbers. Also stores permit supporting PDFs uploaded from ServiceRequest workflow.
 
 **Internal architecture:**
 ```
 DocumentsController
   ├── POST /              → Create document request (Citizen)
   ├── GET  /my-documents  → Get citizen's own documents
-  ├── GET  /my-assignments → Get documents assigned to current officer (Officer only)
+   ├── GET  /my-assignments → Get documents assigned to current officer (Officer only, legacy)
+   ├── GET  /assigned-to-me → Get documents assigned to current officer (Officer)
   ├── GET  /              → List all with ?status=&documentType= filter (Admin/Officer)
   ├── GET  /{id}          → Get single document (owner check for Citizens)
-  ├── PUT  /{id}/status   → Update status (Admin/Officer)
-  └── PUT  /{id}/assign   → Assign officer (Admin only)
+   ├── PUT  /{id}/status   → Update status (Admin/Officer, legacy compatibility)
+   ├── PUT  /{id}/start-review → Move Submitted → UnderReview (Admin/Officer)
+   ├── PUT  /{id}/approve  → Move UnderReview → Approved (Admin/Officer)
+   ├── PUT  /{id}/reject   → Move UnderReview → Rejected (Admin/Officer)
+   ├── PUT  /{id}/assign   → Assign officer (Admin only)
+   ├── POST /supporting-files → Upload supporting PDF into DB (Citizen/internal)
+   └── GET  /supporting-files/{id}/download → Download supporting PDF
                                     │
-                            DocumentDbContext → Documents table
+                                          DocumentDbContext → Documents + SupportingDocuments tables
 ```
 
-**Status flow:**
+**Workflow status flow:**
+
 ```
-Pending → Processing → Ready → Collected
-                    → Rejected
+Submitted → UnderReview → Approved
+                               ↘ Rejected
 ```
 
 **Key details:**
 - Document types: BirthCertificate, NationalId, MarriageCertificate, DeathCertificate, DrivingLicense
-- **Reference number generation:** When a document status is changed to "Ready", a unique reference number is automatically generated in the format: `{TypePrefix}-{Date}-{RandomHex}` (e.g., `NI-20260306-ABC12345`)
+- **Reference number generation:** When a document status is changed to "Approved", a unique reference number is automatically generated in the format: `{TypePrefix}-{Date}-{RandomHex}` (e.g., `NI-20260306-ABC12345`)
 - Type prefixes: BC (Birth Certificate), NI (National ID), MC (Marriage Certificate), DC (Death Certificate), DL (Driving License)
 - Reference numbers have a unique index with null filter (only non-null values are unique)
 - `RejectionReason` is stored when status is set to Rejected
+- Progress is computed on read: `ProgressPercentage` + `ProgressColor`
+- Supporting permit PDFs are stored in `SupportingDocuments` with bytea content and metadata
 
 **Database:** `document_db` on port 5435
-- Table: `Documents` — Id, CitizenUserId, DocumentType, Title, Description, Status, RejectionReason, ProcessedByOfficerId, ReferenceNumber (unique filtered), CreatedAt, UpdatedAt, CompletedAt
+- Table: `Documents` — Id, CitizenUserId, DocumentType, Title, Description, Status, RejectionReason, AssignedOfficerId, ProcessedByOfficerId, ReferenceNumber (unique filtered), CreatedAt, UpdatedAt, CompletedAt
+- Table: `SupportingDocuments` — Id, CitizenUserId, ServiceRequestId, FileName, ContentType, FileData, FileSize, UploadedAt
 
 ---
 

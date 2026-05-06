@@ -1,0 +1,241 @@
+{
+  "info": {
+    "name": "E-Government Workflow Demo",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth - Login Citizen",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{citizenEmail}}\",\n  \"password\": \"{{citizenPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Auth - Login Officer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{officerEmail}}\",\n  \"password\": \"{{officerPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Auth - Login Admin",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "Citizen - Create Permit Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"type\": \"Permit\",\n  \"title\": \"Building Permit\",\n  \"description\": \"Permit for residential extension\"\n}"
+        },
+        "url": "{{baseUrl}}/api/servicerequests"
+      }
+    },
+    {
+      "name": "Admin - Assign Officer",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"officerId\": \"{{officerId}}\"\n}"
+        },
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/assign-officer"
+      }
+    },
+    {
+      "name": "Officer - Request Documents",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"officerNote\": \"Please upload signed ownership proof PDF.\"\n}"
+        },
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/request-documents"
+      }
+    },
+    {
+      "name": "Citizen - Upload Permit PDF",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "{{pdfPath}}"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/upload-document"
+      }
+    },
+    {
+      "name": "Officer - Reject Documents (Resubmittable)",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Document is blurred, please upload a clearer scan.\"\n}"
+        },
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/reject-documents"
+      }
+    },
+    {
+      "name": "Citizen - Reupload Permit PDF",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "{{pdfPath}}"
+            }
+          ]
+        },
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/upload-document"
+      }
+    },
+    {
+      "name": "Officer - Approve Request",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/servicerequests/{{requestId}}/approve"
+      }
+    },
+    {
+      "name": "Citizen - My Requests",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{citizenToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/servicerequests/my-requests"
+      }
+    },
+    {
+      "name": "Officer - Assigned To Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/servicerequests/assigned-to-me"
+      }
+    },
+    {
+      "name": "Admin - All Requests",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/servicerequests/all"
+      }
+    },
+    {
+      "name": "Document - Start Review",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/documents/{{documentId}}/start-review"
+      }
+    },
+    {
+      "name": "Document - Approve",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/documents/{{documentId}}/approve"
+      }
+    },
+    {
+      "name": "Document - Reject",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{officerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Validation failed\"\n}"
+        },
+        "url": "{{baseUrl}}/api/documents/{{documentId}}/reject"
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5050" },
+    { "key": "citizenEmail", "value": "" },
+    { "key": "citizenPassword", "value": "" },
+    { "key": "officerEmail", "value": "" },
+    { "key": "officerPassword", "value": "" },
+    { "key": "adminEmail", "value": "" },
+    { "key": "adminPassword", "value": "" },
+    { "key": "citizenToken", "value": "" },
+    { "key": "officerToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "officerId", "value": "" },
+    { "key": "requestId", "value": "" },
+    { "key": "documentId", "value": "" },
+    { "key": "pdfPath", "value": "" }
+  ]
+}
