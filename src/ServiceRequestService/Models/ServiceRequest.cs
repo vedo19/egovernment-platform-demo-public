@@ -20,12 +20,17 @@ public class ServiceRequest
     public string Description { get; set; } = string.Empty;
 
     [Required, MaxLength(30)]
-    public string Status { get; set; } = "Pending"; // Pending, InProgress, Resolved, Rejected
+    public string Status { get; set; } = "Submitted";
 
     [MaxLength(1000)]
     public string? AdminNotes { get; set; }
 
+    [MaxLength(1000)]
+    public string? OfficerNote { get; set; }
+
     public Guid? AssignedOfficerId { get; set; }
+
+    public Guid? LinkedDocumentId { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

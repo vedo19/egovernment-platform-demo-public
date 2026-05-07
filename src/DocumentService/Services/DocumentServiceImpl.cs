@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DocumentService.Data;
 using DocumentService.DTOs;
 using DocumentService.Models;
@@ -8,7 +9,9 @@ namespace DocumentService.Services;
 public class DocumentServiceImpl : IDocumentService
 {
     private readonly DocumentDbContext _db;
-    private readonly string _storageRoot;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IPdfGeneratorService _pdfGenerator;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
     private static readonly HashSet<string> ValidDocumentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -18,13 +21,19 @@ public class DocumentServiceImpl : IDocumentService
 
     private static readonly HashSet<string> ValidStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Pending", "Processing", "Ready", "Rejected", "Collected"
+        "Submitted", "UnderReview", "Approved", "Rejected"
     };
 
-    public DocumentServiceImpl(DocumentDbContext db, IConfiguration configuration)
+    public DocumentServiceImpl(
+        DocumentDbContext db,
+        IHttpClientFactory httpClientFactory,
+        IPdfGeneratorService pdfGenerator,
+        IHttpContextAccessor httpContextAccessor)
     {
         _db = db;
-        _storageRoot = configuration["DocumentStorage:Path"] ?? "/app/uploads";
+        _httpClientFactory = httpClientFactory;
+        _pdfGenerator = pdfGenerator;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<DocumentDto> CreateAsync(Guid citizenUserId, CreateDocumentRequestDto dto)
@@ -37,7 +46,8 @@ public class DocumentServiceImpl : IDocumentService
             CitizenUserId = citizenUserId,
             DocumentType = dto.DocumentType,
             Title = dto.Title,
-            Description = dto.Description
+            Description = dto.Description,
+            Status = "Submitted"
         };
 
         _db.Documents.Add(document);
@@ -67,7 +77,10 @@ public class DocumentServiceImpl : IDocumentService
         var query = _db.Documents.AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(status))
-            query = query.Where(d => d.Status == status);
+        {
+            var normalized = DocumentWorkflow.NormalizeStatus(status);
+            query = query.Where(d => d.Status == normalized);
+        }
 
         if (!string.IsNullOrWhiteSpace(documentType))
             query = query.Where(d => d.DocumentType == documentType);
@@ -87,29 +100,14 @@ public class DocumentServiceImpl : IDocumentService
 
     public async Task<DocumentDto?> UpdateStatusAsync(Guid id, Guid officerId, UpdateDocumentStatusDto dto)
     {
-        if (!ValidStatuses.Contains(dto.Status))
+        var normalized = DocumentWorkflow.NormalizeStatus(dto.Status);
+        if (!ValidStatuses.Contains(normalized))
             throw new ArgumentException($"Invalid status '{dto.Status}'. Valid statuses: {string.Join(", ", ValidStatuses)}");
 
         var document = await _db.Documents.FindAsync(id);
         if (document is null) return null;
 
-        document.Status = dto.Status;
-        document.UpdatedAt = DateTime.UtcNow;
-
-        if (document.ProcessedByOfficerId is null)
-            document.ProcessedByOfficerId = officerId;
-
-        if (dto.Status is "Rejected")
-            document.RejectionReason = dto.RejectionReason;
-
-        if (dto.Status is "Ready" or "Collected")
-        {
-            document.CompletedAt = DateTime.UtcNow;
-            document.ReferenceNumber ??= GenerateReferenceNumber(document.DocumentType);
-        }
-
-        await _db.SaveChangesAsync();
-        return ToDto(document);
+        return await TransitionAsync(document, normalized, officerId, dto.RejectionReason, assignWhenMissing: true);
     }
 
     public async Task<DocumentDto?> AssignOfficerAsync(Guid id, Guid officerId)
@@ -117,43 +115,234 @@ public class DocumentServiceImpl : IDocumentService
         var document = await _db.Documents.FindAsync(id);
         if (document is null) return null;
 
+        document.AssignedOfficerId = officerId;
         document.ProcessedByOfficerId = officerId;
         document.UpdatedAt = DateTime.UtcNow;
-
-        if (document.Status is "Pending")
-            document.Status = "Processing";
 
         await _db.SaveChangesAsync();
         return ToDto(document);
     }
 
-    public async Task<string?> SaveAttachmentAsync(Guid documentId, IFormFile file)
+    public async Task<DocumentDto?> StartReviewAsync(Guid id, Guid actorId, bool isAdmin)
     {
-        var document = await _db.Documents.FindAsync(documentId);
-        if (document is null)
-            return null;
+        var document = await _db.Documents.FindAsync(id);
+        if (document is null) return null;
 
-        var documentFolder = Path.Combine(_storageRoot, documentId.ToString("N"));
-        Directory.CreateDirectory(documentFolder);
+        var canSelfAssign = !isAdmin
+                            && !document.AssignedOfficerId.HasValue
+                            && !document.ProcessedByOfficerId.HasValue
+                            && DocumentWorkflow.NormalizeStatus(document.Status).Equals("Submitted", StringComparison.OrdinalIgnoreCase);
+        if (!canSelfAssign)
+            EnsureOfficerAccess(document, actorId, isAdmin);
 
-        var safeFileName = Path.GetFileName(file.FileName);
-        var filePath = Path.Combine(documentFolder, safeFileName);
+        return await TransitionAsync(document, "UnderReview", actorId, assignWhenMissing: true);
+    }
 
-        await using var stream = File.Create(filePath);
+    public async Task<DocumentDto?> ApproveAsync(Guid id, Guid actorId, bool isAdmin)
+    {
+        var document = await _db.Documents.FindAsync(id);
+        if (document is null) return null;
+
+        EnsureOfficerAccess(document, actorId, isAdmin);
+        return await TransitionAsync(document, "Approved", actorId);
+    }
+
+    public async Task<DocumentDto?> RejectAsync(Guid id, Guid actorId, string reason, bool isAdmin)
+    {
+        var document = await _db.Documents.FindAsync(id);
+        if (document is null) return null;
+
+        EnsureOfficerAccess(document, actorId, isAdmin);
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Rejection reason is required.");
+
+        return await TransitionAsync(document, "Rejected", actorId, reason);
+    }
+
+    public async Task<SupportingDocumentDto> UploadSupportingDocumentAsync(Guid citizenUserId, Guid serviceRequestId, IFormFile file)
+    {
+        if (file is null || file.Length == 0)
+            throw new ArgumentException("PDF file is required.");
+
+        if (!"application/pdf".Equals(file.ContentType, StringComparison.OrdinalIgnoreCase)
+            && !Path.GetExtension(file.FileName).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            throw new ArgumentException("Only PDF files are supported.");
+
+        await using var stream = new MemoryStream();
         await file.CopyToAsync(stream);
 
-        return filePath;
+        var supportingDocument = new SupportingDocument
+        {
+            CitizenUserId = citizenUserId,
+            ServiceRequestId = serviceRequestId,
+            FileName = Path.GetFileName(file.FileName),
+            ContentType = "application/pdf",
+            FileSize = file.Length,
+            FileData = stream.ToArray(),
+            UploadedAt = DateTime.UtcNow
+        };
+
+        _db.SupportingDocuments.Add(supportingDocument);
+        await _db.SaveChangesAsync();
+
+        return new SupportingDocumentDto
+        {
+            Id = supportingDocument.Id,
+            CitizenUserId = supportingDocument.CitizenUserId,
+            ServiceRequestId = supportingDocument.ServiceRequestId,
+            FileName = supportingDocument.FileName,
+            ContentType = supportingDocument.ContentType,
+            FileSize = supportingDocument.FileSize,
+            UploadedAt = supportingDocument.UploadedAt
+        };
     }
 
-    public Task<string?> GetAttachmentPathAsync(Guid documentId)
+    public async Task<SupportingDocumentFileDto?> GetSupportingDocumentFileAsync(Guid id)
     {
-        var documentFolder = Path.Combine(_storageRoot, documentId.ToString("N"));
-        if (!Directory.Exists(documentFolder))
-            return Task.FromResult<string?>(null);
+        var file = await _db.SupportingDocuments.FindAsync(id);
+        if (file is null) return null;
 
-        var filePath = Directory.EnumerateFiles(documentFolder).OrderByDescending(x => x).FirstOrDefault();
-        return Task.FromResult(filePath);
+        return new SupportingDocumentFileDto
+        {
+            Id = file.Id,
+            CitizenUserId = file.CitizenUserId,
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            FileData = file.FileData
+        };
     }
+
+    private async Task<DocumentDto> TransitionAsync(
+        Document document,
+        string targetStatus,
+        Guid actorId,
+        string? rejectionReason = null,
+        bool assignWhenMissing = false)
+    {
+        var current = DocumentWorkflow.NormalizeStatus(document.Status);
+        var target = DocumentWorkflow.NormalizeStatus(targetStatus);
+
+        if (!DocumentWorkflow.CanTransition(current, target))
+            throw new ArgumentException($"Invalid transition: {current} -> {target}.");
+
+        document.Status = target;
+        document.UpdatedAt = DateTime.UtcNow;
+
+        if (assignWhenMissing && !document.AssignedOfficerId.HasValue)
+            document.AssignedOfficerId = actorId;
+
+        if (!document.ProcessedByOfficerId.HasValue)
+            document.ProcessedByOfficerId = actorId;
+
+        if (target == "Rejected")
+            document.RejectionReason = rejectionReason;
+
+        if (target == "Approved")
+        {
+            document.CompletedAt = DateTime.UtcNow;
+            document.ReferenceNumber ??= GenerateReferenceNumber(document.DocumentType);
+        }
+
+            var citizen = await FetchCitizenDataAsync(document.CitizenUserId);
+            var expiresAt = GetExpiryDate(document.DocumentType);
+
+            document.FileContent = _pdfGenerator.GenerateDocument(
+                document.DocumentType, citizen, document.ReferenceNumber!, expiresAt);
+            document.GeneratedAt = DateTime.UtcNow;
+            document.ExpiresAt = expiresAt;
+
+        await _db.SaveChangesAsync();
+        return ToDto(document);
+    }
+
+    private static void EnsureOfficerAccess(Document document, Guid actorId, bool isAdmin)
+    {
+        if (isAdmin) return;
+
+        if (document.AssignedOfficerId.HasValue && document.AssignedOfficerId.Value == actorId)
+            return;
+
+        if (document.ProcessedByOfficerId.HasValue && document.ProcessedByOfficerId.Value == actorId)
+            return;
+
+        throw new ArgumentException("Only the assigned officer can perform this action.");
+    }
+
+    public async Task<(byte[] FileContent, string FileName, string ContentType)> GetDocumentFileAsync(Guid documentId, Guid userId, string userRole)
+    {
+        var document = await _db.Documents.FindAsync(documentId)
+            ?? throw new KeyNotFoundException($"Document '{documentId}' not found.");
+
+        if (userRole is "Citizen" && document.CitizenUserId != userId)
+            throw new UnauthorizedAccessException();
+
+        if (document.Status is not ("Approved"))
+            throw new InvalidOperationException("Document is not yet ready for download.");
+
+        if (document.FileContent is null)
+            throw new InvalidOperationException("Document file has not been generated yet.");
+
+        var fileName = $"{document.DocumentType}_{document.ReferenceNumber ?? document.Id.ToString()}.pdf";
+        return (document.FileContent, fileName, "application/pdf");
+    }
+
+    public async Task<(byte[] FileContent, string FileName, string ContentType)> GeneratePreviewAsync(Guid documentId)
+    {
+        var document = await _db.Documents.FindAsync(documentId)
+            ?? throw new KeyNotFoundException($"Document '{documentId}' not found.");
+
+        var citizen = await FetchCitizenDataAsync(document.CitizenUserId);
+        var refNumber = document.ReferenceNumber ?? "PREVIEW-" + document.Id.ToString()[..8].ToUpperInvariant();
+        var expiresAt = GetExpiryDate(document.DocumentType);
+
+        var pdfBytes = _pdfGenerator.GenerateDocument(
+            document.DocumentType, citizen, refNumber, expiresAt, isDraft: true);
+
+        var fileName = $"PREVIEW_{document.DocumentType}_{document.Id}.pdf";
+        return (pdfBytes, fileName, "application/pdf");
+    }
+
+    // ── Private helpers ──
+
+    private async Task<CitizenData> FetchCitizenDataAsync(Guid citizenUserId)
+    {
+        var httpClient = _httpClientFactory.CreateClient("CitizenService");
+
+        // Forward the current request's JWT token for auth
+        var authHeader = _httpContextAccessor.HttpContext?.Request.Headers["Authorization"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(authHeader))
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation("Authorization", authHeader);
+
+        var response = await httpClient.GetAsync($"/api/citizens/by-user/{citizenUserId}");
+
+        if (!response.IsSuccessStatusCode)
+            throw new InvalidOperationException($"Failed to fetch citizen profile for user {citizenUserId}. Status: {response.StatusCode}");
+
+        var json = await response.Content.ReadAsStringAsync();
+        var profile = JsonSerializer.Deserialize<CitizenProfileResponse>(json, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? throw new InvalidOperationException("Failed to deserialize citizen profile.");
+
+        return new CitizenData(
+            profile.FullName,
+            profile.NationalId,
+            profile.DateOfBirth,
+            profile.Address,
+            profile.City,
+            profile.Gender,
+            profile.Email,
+            profile.PhoneNumber
+        );
+    }
+
+    private static DateTime? GetExpiryDate(string documentType) => documentType switch
+    {
+        "DrivingLicense" => DateTime.UtcNow.AddYears(10),
+        "NationalId" => DateTime.UtcNow.AddYears(10),
+        _ => null
+    };
 
     private static string GenerateReferenceNumber(string documentType)
     {
@@ -178,10 +367,28 @@ public class DocumentServiceImpl : IDocumentService
         Description = d.Description,
         Status = d.Status,
         RejectionReason = d.RejectionReason,
+        AssignedOfficerId = d.AssignedOfficerId,
         ProcessedByOfficerId = d.ProcessedByOfficerId,
         ReferenceNumber = d.ReferenceNumber,
+        ProgressPercentage = DocumentWorkflow.GetProgressPercentage(d.Status),
+        ProgressColor = DocumentWorkflow.GetProgressColor(d.Status),
         CreatedAt = d.CreatedAt,
         UpdatedAt = d.UpdatedAt,
-        CompletedAt = d.CompletedAt
+        CompletedAt = d.CompletedAt,
+        ExpiresAt = d.ExpiresAt,
+        GeneratedAt = d.GeneratedAt,
     };
+
+    // ── Internal DTO for CitizenService response deserialization ──
+    private class CitizenProfileResponse
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string NationalId { get; set; } = string.Empty;
+        public DateOnly DateOfBirth { get; set; }
+        public string Address { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+    }
 }

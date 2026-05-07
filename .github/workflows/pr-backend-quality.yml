@@ -57,4 +57,4 @@ jobs:
             exit 0
           fi
 
-          npx prettier@3 --check $files
+          npx prettier@3 --check --ignore-unknown $files

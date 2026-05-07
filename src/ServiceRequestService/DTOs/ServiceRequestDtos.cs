@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace ServiceRequestService.DTOs;
 
@@ -23,6 +24,30 @@ public class UpdateStatusDto
     public string? AdminNotes { get; set; }
 }
 
+public class AssignOfficerRequestDto
+{
+    [Required]
+    public Guid OfficerId { get; set; }
+}
+
+public class RequestDocumentsDto
+{
+    [Required, MaxLength(1000)]
+    public string OfficerNote { get; set; } = string.Empty;
+}
+
+public class RejectServiceRequestDto
+{
+    [Required, MaxLength(1000)]
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class UploadDocumentDto
+{
+    [Required]
+    public IFormFile File { get; set; } = default!;
+}
+
 public class ServiceRequestDto
 {
     public Guid Id { get; set; }
@@ -32,7 +57,12 @@ public class ServiceRequestDto
     public string Description { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? AdminNotes { get; set; }
+    public string? OfficerNote { get; set; }
     public Guid? AssignedOfficerId { get; set; }
+    public Guid? LinkedDocumentId { get; set; }
+    public bool IsResubmittable { get; set; }
+    public int ProgressPercentage { get; set; }
+    public string ProgressColor { get; set; } = "blue";
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
     public DateTime? ResolvedAt { get; set; }
