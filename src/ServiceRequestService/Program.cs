@@ -70,6 +70,7 @@ builder.Services.AddAuthorization();
 
 // ---------- Application Services ----------
 builder.Services.AddScoped<IServiceRequestService, ServiceRequestServiceImpl>();
+builder.Services.AddSingleton<IServiceRequestEventPublisher, RabbitMqServiceRequestEventPublisher>();
 builder.Services.AddHttpClient<IDocumentStorageClient, DocumentStorageClient>(client =>
 {
     var baseUrl = builder.Configuration["DocumentService:BaseUrl"] ?? "http://localhost:5004/";
