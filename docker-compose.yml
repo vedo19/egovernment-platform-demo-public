@@ -105,6 +105,60 @@ services:
       timeout: 5s
       retries: 5
 
+  # ───────────────────────────── Audit Database ────────────────────────────
+  audit_db:
+    image: postgres:16-alpine
+    container_name: audit_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: audit_db
+    ports:
+      - "5437:5432"
+    volumes:
+      - audit_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ───────────────────────── Notification Database ─────────────────────────
+  notification_db:
+    image: postgres:16-alpine
+    container_name: notification_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      POSTGRES_DB: notification_db
+    ports:
+      - "5438:5432"
+    volumes:
+      - notification_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────── RabbitMQ ────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "${RABBITMQ_USER:-egov}"
+      RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:-egov-rabbitmq-dev-secret}"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # ─────────────────────── Service Request Service ─────────────────────────
   service_request_service:
     build:
@@ -128,6 +182,8 @@ services:
       DocumentService__BaseUrl: "http://document_service:8080/"
     depends_on:
       request_db:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   # ─────────────────────────── Document Database ───────────────────────────
@@ -210,3 +266,6 @@ volumes:
   citizen_db_data:
   request_db_data:
   document_db_data:
+  audit_db_data:
+  notification_db_data:
+  rabbitmq_data:
