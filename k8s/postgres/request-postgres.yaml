@@ -46,14 +46,14 @@ spec:
                   key: RequestDb__Password
           readinessProbe:
             exec:
-              command: ["sh", "-c", "pg_isready -U postgres -d request_db"]
+              command: ['sh', '-c', 'pg_isready -U postgres -d request_db']
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 6
           livenessProbe:
             exec:
-              command: ["sh", "-c", "pg_isready -U postgres -d request_db"]
+              command: ['sh', '-c', 'pg_isready -U postgres -d request_db']
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 3
@@ -65,7 +65,7 @@ spec:
     - metadata:
         name: data
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: ['ReadWriteOnce']
         resources:
           requests:
             storage: 1Gi

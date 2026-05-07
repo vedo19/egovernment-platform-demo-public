@@ -1,74 +1,56 @@
 {
   "Routes": [
-        
     {
       "UpstreamPathTemplate": "/api/auth/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       "DownstreamPathTemplate": "/api/auth/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "auth_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "auth_service", "Port": 80 }]
     },
 
-    
     {
       "UpstreamPathTemplate": "/api/citizens/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       "DownstreamPathTemplate": "/api/citizens/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "citizen_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "citizen_service", "Port": 80 }]
     },
     {
       "UpstreamPathTemplate": "/api/citizens",
-      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
       "DownstreamPathTemplate": "/api/citizens",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "citizen_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "citizen_service", "Port": 80 }]
     },
 
-   
     {
       "UpstreamPathTemplate": "/api/servicerequests/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       "DownstreamPathTemplate": "/api/servicerequests/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "service_request_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "service_request_service", "Port": 80 }]
     },
     {
       "UpstreamPathTemplate": "/api/servicerequests",
-      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
       "DownstreamPathTemplate": "/api/servicerequests",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "service_request_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "service_request_service", "Port": 80 }]
     },
 
-    
     {
       "UpstreamPathTemplate": "/api/documents/{everything}",
-      "UpstreamHttpMethod": [ "GET", "POST", "PUT", "DELETE", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       "DownstreamPathTemplate": "/api/documents/{everything}",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "document_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "document_service", "Port": 80 }]
     },
     {
       "UpstreamPathTemplate": "/api/documents",
-      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
       "DownstreamPathTemplate": "/api/documents",
       "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        { "Host": "document_service", "Port": 80 }
-      ]
+      "DownstreamHostAndPorts": [{ "Host": "document_service", "Port": 80 }]
     }
   ],
 

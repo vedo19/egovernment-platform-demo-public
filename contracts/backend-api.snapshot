@@ -25,25 +25,39 @@ Generated from controller and gateway route declarations.
 ## DocumentService/Documents
 
 - GET /api/Documents
+- GET /api/Documents/assigned-to-me
 - GET /api/Documents/health
 - GET /api/Documents/{id:guid}
-- GET /api/Documents/{id:guid}/file
+- GET /api/Documents/{id:guid}/download
+- GET /api/Documents/{id:guid}/preview
 - GET /api/Documents/my-assignments
 - GET /api/Documents/my-documents
+- GET /api/Documents/supporting-files/{id:guid}/download
 - POST /api/Documents
-- POST /api/Documents/{id:guid}/upload
+- POST /api/Documents/supporting-files
+- PUT /api/Documents/{id:guid}/approve
 - PUT /api/Documents/{id:guid}/assign
+- PUT /api/Documents/{id:guid}/reject
+- PUT /api/Documents/{id:guid}/start-review
 - PUT /api/Documents/{id:guid}/status
 
 ## ServiceRequestService/ServiceRequests
 
 - GET /api/ServiceRequests
+- GET /api/ServiceRequests/all
+- GET /api/ServiceRequests/assigned-to-me
 - GET /api/ServiceRequests/health
 - GET /api/ServiceRequests/{id:guid}
 - GET /api/ServiceRequests/my-assignments
 - GET /api/ServiceRequests/my-requests
 - POST /api/ServiceRequests
+- POST /api/ServiceRequests/{id:guid}/upload-document
+- PUT /api/ServiceRequests/{id:guid}/approve
 - PUT /api/ServiceRequests/{id:guid}/assign
+- PUT /api/ServiceRequests/{id:guid}/assign-officer
+- PUT /api/ServiceRequests/{id:guid}/reject
+- PUT /api/ServiceRequests/{id:guid}/reject-documents
+- PUT /api/ServiceRequests/{id:guid}/request-documents
 - PUT /api/ServiceRequests/{id:guid}/status
 
 ## ApiGateway/Routes
