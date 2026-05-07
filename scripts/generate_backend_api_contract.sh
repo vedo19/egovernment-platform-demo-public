@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure deterministic ordering across environments/CI locales.
+export LC_ALL=C
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_FILE="${1:-$ROOT_DIR/contracts/backend-api.snapshot}"
 
