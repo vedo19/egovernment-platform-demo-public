@@ -381,7 +381,9 @@ function RequestsTab({ onRefreshSummary }) {
       await loadRequests();
     } catch (err) {
       const d = err.response?.data;
-      setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to upload document');
+      setUploadError(
+        typeof d === 'string' ? d : d?.error || d?.message || 'Failed to upload document'
+      );
     } finally {
       setUploadingId(null);
     }
@@ -395,7 +397,9 @@ function RequestsTab({ onRefreshSummary }) {
       await documentApi.openSupportingFile(request.linkedDocumentId);
     } catch (err) {
       const d = err.response?.data;
-      setUploadError(typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open uploaded document');
+      setUploadError(
+        typeof d === 'string' ? d : d?.error || d?.message || 'Failed to open uploaded document'
+      );
     } finally {
       setDocumentBusyId(null);
     }
@@ -523,7 +527,9 @@ function RequestsTab({ onRefreshSummary }) {
                     <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                   </td>
                   <td className="desc-cell">
-                    {UPLOAD_ALLOWED_STATUSES.has(r.status) ? (r.officerNote || 'No note provided') : '—'}
+                    {UPLOAD_ALLOWED_STATUSES.has(r.status)
+                      ? r.officerNote || 'No note provided'
+                      : '—'}
                   </td>
                   <td>
                     {UPLOAD_ALLOWED_STATUSES.has(r.status) ? (
@@ -539,10 +545,16 @@ function RequestsTab({ onRefreshSummary }) {
                   </td>
                   <td>
                     {r.linkedDocumentId ? (
-                      <button className="btn btn-sm btn-outline" disabled={documentBusyId === r.id} onClick={() => handleOpenDocument(r)}>
+                      <button
+                        className="btn btn-sm btn-outline"
+                        disabled={documentBusyId === r.id}
+                        onClick={() => handleOpenDocument(r)}
+                      >
                         {documentBusyId === r.id ? 'Opening...' : 'View'}
                       </button>
-                    ) : '—'}
+                    ) : (
+                      '—'
+                    )}
                   </td>
                   <td>{new Date(r.createdAt).toLocaleDateString()}</td>
                 </tr>
@@ -618,6 +630,22 @@ function DocumentsTab({ onRefreshSummary }) {
               JSON.stringify(d?.errors || d) ||
               'Failed to create document request'
       );
+    }
+  };
+
+  const handleDownload = async (doc) => {
+    try {
+      const { data } = await documentApi.download(doc.id);
+      const url = window.URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${doc.documentType}_${doc.referenceNumber || doc.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed', err);
     }
   };
 
@@ -734,7 +762,9 @@ function DocumentsTab({ onRefreshSummary }) {
                 <th>Progress</th>
                 <th>Reason</th>
                 <th>Reference #</th>
+                <th>Expires</th>
                 <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -747,7 +777,23 @@ function DocumentsTab({ onRefreshSummary }) {
                   </td>
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>
-                  <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
+                  <td>
+                    {d.status === 'Approved'
+                      ? d.expiresAt
+                        ? new Date(d.expiresAt).toLocaleDateString()
+                        : 'No expiry'
+                      : '—'}
+                  </td>
+                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    {d.status === 'Approved' ? (
+                      <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>
+                        Download
+                      </button>
+                    ) : (
+                      '—'
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>

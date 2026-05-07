@@ -152,6 +152,26 @@ public class DocumentsController : ControllerBase
         return File(file.FileData, file.ContentType, file.FileName);
     }
 
+    // ── GET /api/documents/{id}/preview ── Officer/Admin previews a draft PDF
+[HttpGet("{id:guid}/preview")]
+[Authorize(Roles = "Admin,Officer")]
+public async Task<IActionResult> Preview(Guid id)
+{
+    var (fileContent, fileName, contentType) = await _documentService.GeneratePreviewAsync(id);
+    return File(fileContent, contentType, fileName);
+}
+
+// ── GET /api/documents/{id}/download ── Citizen/Officer downloads final PDF
+[HttpGet("{id:guid}/download")]
+[Authorize]
+public async Task<IActionResult> Download(Guid id)
+{
+    var userId = GetUserId();
+    var role = User.FindFirst("role")?.Value ?? string.Empty;
+    var (fileContent, fileName, contentType) = await _documentService.GetDocumentFileAsync(id, userId, role);
+    return File(fileContent, contentType, fileName);
+}
+
     // ── GET /api/documents/health ──
     [HttpGet("health")]
     [AllowAnonymous]

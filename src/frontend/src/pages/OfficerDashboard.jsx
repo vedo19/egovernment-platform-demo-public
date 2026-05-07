@@ -108,35 +108,52 @@ function OfficerRequestsTab({ onRefreshSummary }) {
       const { data } = await serviceRequestApi.getAssignedToMe();
       // Only show actionable items — hide already resolved/rejected
       setRequests(data.filter((r) => r.status !== 'Approved' && r.status !== 'Rejected'));
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
 
   const handleAction = async (request, action) => {
-    if ((action === 'reject' || action === 'reject-documents' || action === 'request-documents') && !notes.trim()) {
-      setError('You must provide a note for this action.');
+    if ((action === 'reject' || action === 'reject-documents') && !notes.trim()) {
+      setError('You must provide a reason when rejecting a request.');
+      return;
+    }
+
+    if (action === 'request-documents' && !notes.trim()) {
+      setError('You must provide a note when requesting documents.');
       return;
     }
 
     setError('');
 
     try {
-      if (action === 'approve') {
+      if (action === 'start-review') {
+        await serviceRequestApi.updateStatus(request.id, { status: 'UnderReview' });
+      } else if (action === 'approve') {
         await serviceRequestApi.approve(request.id);
+      } else if (action === 'request-documents') {
+        await serviceRequestApi.requestDocuments(request.id, notes);
       } else if (action === 'reject-documents') {
         await serviceRequestApi.rejectDocuments(request.id, notes);
       } else if (action === 'reject') {
         await serviceRequestApi.reject(request.id, notes);
-      } else if (action === 'request-documents') {
-        await serviceRequestApi.requestDocuments(request.id, notes);
-      } else if (action === 'start-review') {
-        await serviceRequestApi.updateStatus(request.id, { status: 'UnderReview' });
       }
-      setSelected(null);
-      setNotes('');
+
       await load();
       onRefreshSummary?.();
+
+      // After reload, find the updated request and refresh selected
+      // so buttons re-render with new status without closing the detail view
+      if (action === 'start-review') {
+        const { data } = await serviceRequestApi.getById(request.id);
+        setSelected(data);
+      } else {
+        // For terminal or transition actions, go back to list
+        setSelected(null);
+        setNotes('');
+      }
     } catch (err) {
       const d = err.response?.data;
       setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
@@ -190,12 +207,26 @@ function OfficerRequestsTab({ onRefreshSummary }) {
 
         {error && <div className="alert alert-error">{error}</div>}
         <div className="detail-grid">
-          <div><strong>Type:</strong> {selected.type}</div>
-          <div><strong>Title:</strong> {selected.title}</div>
-          <div><strong>Status:</strong> {selected.status}</div>
-          <div style={{ gridColumn: '1 / span 2' }}><strong>Progress:</strong> <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} /></div>
-          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
-          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
+          <div>
+            <strong>Type:</strong> {selected.type}
+          </div>
+          <div>
+            <strong>Title:</strong> {selected.title}
+          </div>
+          <div>
+            <strong>Status:</strong> {selected.status}
+          </div>
+          <div style={{ gridColumn: '1 / span 2' }}>
+            <strong>Progress:</strong>{' '}
+            <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
+          </div>
+          <div>
+            <strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}
+          </div>
+          <div>
+            <strong>Citizen ID:</strong>{' '}
+            <span className="id-cell-inline">{selected.citizenUserId}</span>
+          </div>
         </div>
 
         <div className="detail-description">
@@ -211,10 +242,18 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         )}
         {selected.linkedDocumentId && (
           <div className="btn-group">
-            <button className="btn btn-primary" disabled={fileBusy} onClick={() => handleOpenDocument(selected.linkedDocumentId)}>
+            <button
+              className="btn btn-primary"
+              disabled={fileBusy}
+              onClick={() => handleOpenDocument(selected.linkedDocumentId)}
+            >
               {fileBusy ? 'Opening...' : 'View Submitted PDF'}
             </button>
-            <button className="btn btn-outline" disabled={fileBusy} onClick={() => handleDownloadDocument(selected.linkedDocumentId, selected)}>
+            <button
+              className="btn btn-outline"
+              disabled={fileBusy}
+              onClick={() => handleDownloadDocument(selected.linkedDocumentId, selected)}
+            >
               Download PDF
             </button>
           </div>
@@ -230,22 +269,52 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          {(selected.status === 'UnderReview') && (
-            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>Approve</button>
+          {selected.status === 'UnderReview' && (
+            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>
+              Approve
+            </button>
           )}
-          {(selected.type === 'Permit' && selected.status === 'UnderReview' && selected.linkedDocumentId) && (
-            <button className="btn btn-primary" onClick={() => handleAction(selected, 'reject-documents')}>Reject Documents</button>
+          {selected.type === 'Permit' &&
+            selected.status === 'UnderReview' &&
+            selected.linkedDocumentId && (
+              <button
+                className="btn btn-primary"
+                onClick={() => handleAction(selected, 'reject-documents')}
+              >
+                Reject Documents
+              </button>
+            )}
+          {selected.status === 'UnderReview' && (
+            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>
+              Reject
+            </button>
           )}
-          {(selected.status === 'UnderReview') && (
-            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>Reject</button>
+          {selected.type === 'Permit' && selected.status === 'OfficerAssigned' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => handleAction(selected, 'request-documents')}
+            >
+              Request Documents
+            </button>
           )}
-          {(selected.type === 'Permit' && selected.status === 'OfficerAssigned') && (
-            <button className="btn btn-primary" onClick={() => handleAction(selected, 'request-documents')}>Request Documents</button>
+          {selected.status === 'OfficerAssigned' && (
+            <button
+              className="btn btn-outline"
+              onClick={() => handleAction(selected, 'start-review')}
+            >
+              Start Review
+            </button>
           )}
-          {(selected.status === 'OfficerAssigned') && (
-            <button className="btn btn-outline" onClick={() => handleAction(selected, 'start-review')}>Start Review</button>
-          )}
-          <button className="btn btn-outline" onClick={() => { setSelected(null); setNotes(''); setError(''); }}>Back</button>
+          <button
+            className="btn btn-outline"
+            onClick={() => {
+              setSelected(null);
+              setNotes('');
+              setError('');
+            }}
+          >
+            Back
+          </button>
         </div>
       </div>
     );
@@ -339,6 +408,8 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   useEffect(() => {
     load();
@@ -350,7 +421,9 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       const { data } = await documentApi.getAssignedToMe();
       // Only show actionable items — hide already completed/rejected
       setDocuments(data.filter((d) => d.status !== 'Approved' && d.status !== 'Rejected'));
-    } catch { /* empty */ } finally {
+    } catch {
+      /* empty */
+    } finally {
       setLoading(false);
     }
   };
@@ -373,11 +446,49 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       }
       setSelected(null);
       setReason('');
+      closePreview();
       await load();
       onRefreshSummary?.();
     } catch (err) {
       const d = err.response?.data;
       setError(typeof d === 'string' ? d : d?.message || d?.title || 'Action failed');
+    }
+  };
+
+  const handlePreview = async (id) => {
+    setPreviewLoading(true);
+    setError('');
+    try {
+      const { data } = await documentApi.preview(id);
+      const url = window.URL.createObjectURL(data);
+      setPreviewUrl((previousUrl) => {
+        if (previousUrl) {
+          window.URL.revokeObjectURL(previousUrl);
+        }
+        return url;
+      });
+    } catch (err) {
+      const blob = err.response?.data;
+      if (blob instanceof Blob) {
+        const text = await blob.text();
+        try {
+          const json = JSON.parse(text);
+          setError(json.message || json.title || json.error || 'Failed to load preview');
+        } catch {
+          setError(text || 'Failed to load preview');
+        }
+      } else {
+        setError(err.response?.data?.message || 'Failed to load preview');
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
     }
   };
 
@@ -401,13 +512,29 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
         <h2>Document Details</h2>
         {error && <div className="alert alert-error">{error}</div>}
         <div className="detail-grid">
-          <div><strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}</div>
-          <div><strong>Title:</strong> {selected.title}</div>
-          <div><strong>Status:</strong> {selected.status}</div>
-          <div style={{ gridColumn: '1 / span 2' }}><strong>Progress:</strong> <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} /></div>
-          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
-          <div><strong>Citizen ID:</strong> <span className="id-cell-inline">{selected.citizenUserId}</span></div>
-          <div><strong>Reference #:</strong> {selected.referenceNumber || '—'}</div>
+          <div>
+            <strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}
+          </div>
+          <div>
+            <strong>Title:</strong> {selected.title}
+          </div>
+          <div>
+            <strong>Status:</strong> {selected.status}
+          </div>
+          <div style={{ gridColumn: '1 / span 2' }}>
+            <strong>Progress:</strong>{' '}
+            <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
+          </div>
+          <div>
+            <strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}
+          </div>
+          <div>
+            <strong>Citizen ID:</strong>{' '}
+            <span className="id-cell-inline">{selected.citizenUserId}</span>
+          </div>
+          <div>
+            <strong>Reference #:</strong> {selected.referenceNumber || '—'}
+          </div>
         </div>
 
         {selected.description && (
@@ -424,6 +551,34 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
           </div>
         )}
 
+        {previewUrl && (
+          <div style={{ margin: '1rem 0' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+              }}
+            >
+              <strong>Document Preview (Draft)</strong>
+              <button className="btn btn-sm btn-outline" onClick={closePreview}>
+                Close Preview
+              </button>
+            </div>
+            <iframe
+              src={previewUrl}
+              title="Document Preview"
+              style={{
+                width: '100%',
+                height: '500px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+              }}
+            />
+          </div>
+        )}
+
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label>Rejection Reason</label>
           <textarea
@@ -435,16 +590,42 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          {(selected.status === 'Submitted') && (
-            <button className="btn btn-primary" onClick={() => handleAction(selected, 'start-review')}>Start Review</button>
+          {selected.status === 'Submitted' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => handleAction(selected, 'start-review')}
+            >
+              Start Review
+            </button>
           )}
-          {(selected.status === 'UnderReview') && (
-            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>Approve</button>
+          {selected.status === 'UnderReview' && (
+            <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>
+              Approve
+            </button>
           )}
-          {(selected.status === 'UnderReview') && (
-            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>Reject</button>
+          {selected.status === 'UnderReview' && (
+            <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>
+              Reject
+            </button>
           )}
-          <button className="btn btn-outline" onClick={() => { setSelected(null); setReason(''); setError(''); }}>Back</button>
+          <button
+            className="btn btn-outline"
+            onClick={() => {
+              setSelected(null);
+              setReason('');
+              setError('');
+              closePreview();
+            }}
+          >
+            Back
+          </button>
+          <button
+            className="btn btn-outline"
+            onClick={() => handlePreview(selected.id)}
+            disabled={previewLoading}
+          >
+            {previewLoading ? 'Loading...' : 'Preview Document'}
+          </button>
         </div>
       </div>
     );

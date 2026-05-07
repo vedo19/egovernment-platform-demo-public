@@ -2,7 +2,15 @@ import { useState, useEffect } from 'react';
 import { authApi, serviceRequestApi, documentApi } from '../api/services';
 import ProgressBar from '../components/ProgressBar';
 
-const REQUEST_STATUSES = ['Submitted', 'OfficerAssigned', 'AwaitingDocuments', 'UnderReview', 'DocumentsRejected', 'Approved', 'Rejected'];
+const REQUEST_STATUSES = [
+  'Submitted',
+  'OfficerAssigned',
+  'AwaitingDocuments',
+  'UnderReview',
+  'DocumentsRejected',
+  'Approved',
+  'Rejected',
+];
 const DOC_STATUSES = ['Submitted', 'UnderReview', 'Approved', 'Rejected'];
 const PAGE_SIZE = 8;
 
@@ -248,7 +256,9 @@ function RequestsTab({ onRefreshSummary }) {
                   <tr key={r.id}>
                     <td>{r.type}</td>
                     <td className="desc-cell">{r.title}</td>
-                    <td className="id-cell" title={r.citizenUserId}>{r.citizenUserId}</td>
+                    <td className="id-cell" title={r.citizenUserId}>
+                      {r.citizenUserId}
+                    </td>
                     <td>{r.status}</td>
                     <td style={{ minWidth: '180px' }}>
                       <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />

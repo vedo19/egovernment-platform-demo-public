@@ -17,4 +17,6 @@ public interface IDocumentService
     Task<DocumentDto?> RejectAsync(Guid id, Guid actorId, string reason, bool isAdmin);
     Task<SupportingDocumentDto> UploadSupportingDocumentAsync(Guid citizenUserId, Guid serviceRequestId, IFormFile file);
     Task<SupportingDocumentFileDto?> GetSupportingDocumentFileAsync(Guid id);
+    Task<(byte[] FileContent, string FileName, string ContentType)> GetDocumentFileAsync(Guid documentId, Guid userId, string userRole);
+    Task<(byte[] FileContent, string FileName, string ContentType)> GeneratePreviewAsync(Guid documentId);
 }

@@ -23,19 +23,17 @@ export const serviceRequestApi = {
   getAssignedToMe: () => client.get('/api/servicerequests/assigned-to-me'),
   getAllRequests: (status) =>
     client.get('/api/servicerequests/all', { params: status ? { status } : {} }),
-  getAll: (status) =>
-    client.get('/api/servicerequests', { params: status ? { status } : {} }),
+  getAll: (status) => client.get('/api/servicerequests', { params: status ? { status } : {} }),
   getById: (id) => client.get(`/api/servicerequests/${id}`),
-  updateStatus: (id, data) =>
-    client.put(`/api/servicerequests/${id}/status`, data),
-  assignOfficer: (id, officerId) =>
-    client.put(`/api/servicerequests/${id}/assign`, { officerId }),
+  updateStatus: (id, data) => client.put(`/api/servicerequests/${id}/status`, data),
+  assignOfficer: (id, officerId) => client.put(`/api/servicerequests/${id}/assign`, { officerId }),
   assignOfficerV2: (id, officerId) =>
     client.put(`/api/servicerequests/${id}/assign-officer`, { officerId }),
   requestDocuments: (id, officerNote) =>
     client.put(`/api/servicerequests/${id}/request-documents`, { officerNote }),
   approve: (id) => client.put(`/api/servicerequests/${id}/approve`),
-  rejectDocuments: (id, reason) => client.put(`/api/servicerequests/${id}/reject-documents`, { reason }),
+  rejectDocuments: (id, reason) =>
+    client.put(`/api/servicerequests/${id}/reject-documents`, { reason }),
   reject: (id, reason) => client.put(`/api/servicerequests/${id}/reject`, { reason }),
   uploadDocument: (id, file) => {
     const formData = new FormData();
@@ -57,20 +55,27 @@ export const documentApi = {
   startReview: (id) => client.put(`/api/documents/${id}/start-review`),
   approve: (id) => client.put(`/api/documents/${id}/approve`),
   reject: (id, reason) => client.put(`/api/documents/${id}/reject`, { reason }),
-  assignOfficer: (id, officerId) =>
-    client.put(`/api/documents/${id}/assign`, { officerId }),
+  assignOfficer: (id, officerId) => client.put(`/api/documents/${id}/assign`, { officerId }),
   getSupportingFileBlob: (id) =>
     client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' }),
   openSupportingFile: async (id) => {
-    const response = await client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' });
-    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+    const response = await client.get(`/api/documents/supporting-files/${id}/download`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'] || 'application/pdf',
+    });
     const url = window.URL.createObjectURL(blob);
     window.open(url, '_blank', 'noopener,noreferrer');
     window.setTimeout(() => window.URL.revokeObjectURL(url), 30000);
   },
   downloadSupportingFile: async (id, fileName = 'supporting-document.pdf') => {
-    const response = await client.get(`/api/documents/supporting-files/${id}/download`, { responseType: 'blob' });
-    const blob = new Blob([response.data], { type: response.headers['content-type'] || 'application/pdf' });
+    const response = await client.get(`/api/documents/supporting-files/${id}/download`, {
+      responseType: 'blob',
+    });
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'] || 'application/pdf',
+    });
     const url = window.URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -80,4 +85,6 @@ export const documentApi = {
     anchor.remove();
     window.URL.revokeObjectURL(url);
   },
+  download: (id) => client.get(`/api/documents/${id}/download`, { responseType: 'blob' }),
+  preview: (id) => client.get(`/api/documents/${id}/preview`, { responseType: 'blob' }),
 };
