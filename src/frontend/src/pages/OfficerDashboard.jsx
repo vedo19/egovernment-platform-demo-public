@@ -446,7 +446,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       }
       setSelected(null);
       setReason('');
-      setPreviewUrl(null);
+      closePreview();
       await load();
       onRefreshSummary?.();
     } catch (err) {
@@ -461,7 +461,12 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
     try {
       const { data } = await documentApi.preview(id);
       const url = window.URL.createObjectURL(data);
-      setPreviewUrl(url);
+      setPreviewUrl((previousUrl) => {
+        if (previousUrl) {
+          window.URL.revokeObjectURL(previousUrl);
+        }
+        return url;
+      });
     } catch (err) {
       const blob = err.response?.data;
       if (blob instanceof Blob) {
