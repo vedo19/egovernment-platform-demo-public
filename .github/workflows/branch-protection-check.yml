@@ -1,0 +1,29 @@
+name: Branch Protection Verification
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  check-branch-protection:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get branch protection rules
+        env:
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "=== Branch Protection Rules for main ==="
+          curl -s -H "Authorization: token $TOKEN" \
+            "https://api.github.com/repos/$REPO/branches/main/protection" | jq '.'
+
+          echo ""
+          echo "=== Required Status Checks ==="
+          curl -s -H "Authorization: token $TOKEN" \
+            "https://api.github.com/repos/$REPO/branches/main/protection/required_status_checks" | jq '.'
+
+          echo ""
+          echo "=== Required Pull Request Reviews ==="
+          curl -s -H "Authorization: token $TOKEN" \
+            "https://api.github.com/repos/$REPO/branches/main/protection/required_pull_request_reviews" | jq '.'
