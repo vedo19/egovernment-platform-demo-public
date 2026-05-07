@@ -2,6 +2,10 @@
 
 This guide is the source of truth for keeping all team members on the same runtime, schema, and data flow.
 
+Related DevOps ADR:
+
+1. `docs/devops/adr/0001-platform-decisions.md`
+
 ## 1. Golden Rules
 
 1. Always pull latest code before starting work.
