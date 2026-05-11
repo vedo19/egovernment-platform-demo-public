@@ -163,6 +163,28 @@
   box-shadow: 0 0 0 4px rgba(14, 108, 196, 0.12);
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  width: 100%;
+  padding-right: 70px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-family: inherit;
+}
+
 /* ── Buttons ── */
 .btn {
   display: inline-flex;
