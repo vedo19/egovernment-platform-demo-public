@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { authApi, serviceRequestApi, documentApi } from '../api/services';
-import ProgressBar from '../components/ProgressBar';
+import { authApi, serviceRequestApi, documentApi } from '../../api/services';
+import ProgressBar from '../../components/ProgressBar';
 
 const REQUEST_STATUSES = [
   'Submitted',

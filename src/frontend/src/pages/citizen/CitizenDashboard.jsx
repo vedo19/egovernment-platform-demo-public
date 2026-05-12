@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { citizenApi, serviceRequestApi, documentApi } from '../api/services';
-import ProgressBar from '../components/ProgressBar';
+import { useAuth } from '../../context/AuthContext';
+import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
+import ProgressBar from '../../components/ProgressBar';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
 const DOC_TYPES = [

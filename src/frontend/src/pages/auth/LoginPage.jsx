@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +31,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       const d = err.response?.data;
-      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Login failed');
+      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Invalid credentials, please try again.');
     } finally {
       setLoading(false);
     }
@@ -63,16 +64,28 @@ export default function LoginPage() {
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
+
+            <div className="password-input-wrapper">
+              <input
               id="password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               placeholder="Enter your password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               required
             />
+
+            <button
+            type="button"
+            className="password-toggle"
+            onClick={() => setShowPassword((current) => !current)}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
           </div>
+        </div>
+
 
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}

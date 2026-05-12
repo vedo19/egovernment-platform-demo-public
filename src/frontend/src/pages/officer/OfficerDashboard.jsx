@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { serviceRequestApi, documentApi } from '../api/services';
-import ProgressBar from '../components/ProgressBar';
+import { useAuth } from '../../context/AuthContext';
+import { serviceRequestApi, documentApi } from '../../api/services';
+import ProgressBar from '../../components/ProgressBar';
 const PAGE_SIZE = 8;
 
 export default function OfficerDashboard() {
