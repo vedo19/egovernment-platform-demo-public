@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { authApi, serviceRequestApi, documentApi } from '../api/services';
+import { authApi, serviceRequestApi, documentApi } from '../../api/services';
 
 const STATUS_COLORS = {
   Pending: '#f59e0b',

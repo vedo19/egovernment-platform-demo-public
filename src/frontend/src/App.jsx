@@ -2,11 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import CitizenDashboard from './pages/CitizenDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import OfficerDashboard from './pages/OfficerDashboard';
+import LoginPage from './pages/auth/LoginPage';
+import RegisterPage from './pages/auth/RegisterPage';
+import CitizenDashboard from './pages/citizen/CitizenDashboard';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import OfficerDashboard from './pages/officer/OfficerDashboard';
 import './App.css';
 
 function HomeRedirect() {
