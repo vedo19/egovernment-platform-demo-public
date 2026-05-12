@@ -2,6 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
+import {
+  canDownloadDocument,
+  canUploadRequestDocument,
+  isPendingStatus,
+} from '../../domain/statuses';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
 const DOC_TYPES = [
@@ -11,7 +16,7 @@ const DOC_TYPES = [
   'DeathCertificate',
   'DrivingLicense',
 ];
-const UPLOAD_ALLOWED_STATUSES = new Set(['AwaitingDocuments', 'DocumentsRejected']);
+
 const PAGE_SIZE = 5;
 
 export default function CitizenDashboard() {
@@ -34,12 +39,9 @@ export default function CitizenDashboard() {
       setRequestCount(requests.length);
       setDocumentCount(documents.length);
 
-      const pendingItems = [...requests, ...documents].filter(
-        (item) =>
-          item?.status === 'Pending' ||
-          item?.status === 'InProgress' ||
-          item?.status === 'Processing'
-      );
+      const pendingItems = [...requests, ...documents].filter((item) => 
+        isPendingStatus(item?.status)
+    );
 
       setPendingCount(pendingItems.length);
     } catch {
@@ -527,12 +529,12 @@ function RequestsTab({ onRefreshSummary }) {
                     <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                   </td>
                   <td className="desc-cell">
-                    {UPLOAD_ALLOWED_STATUSES.has(r.status)
+                    {canUploadRequestDocument(r.status)
                       ? r.officerNote || 'No note provided'
                       : '—'}
                   </td>
                   <td>
-                    {UPLOAD_ALLOWED_STATUSES.has(r.status) ? (
+                    {canUploadRequestDocument(r.status) ? (
                       <input
                         type="file"
                         accept="application/pdf,.pdf"
@@ -778,7 +780,7 @@ function DocumentsTab({ onRefreshSummary }) {
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>
                   <td>
-                    {d.status === 'Approved'
+                    {canDownloadDocument(d.status)
                       ? d.expiresAt
                         ? new Date(d.expiresAt).toLocaleDateString()
                         : 'No expiry'
@@ -786,7 +788,7 @@ function DocumentsTab({ onRefreshSummary }) {
                   </td>
                   <td>{new Date(d.createdAt).toLocaleDateString()}</td>
                   <td>
-                    {d.status === 'Approved' ? (
+                    {canDownloadDocument(d.status) ? (
                       <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>
                         Download
                       </button>

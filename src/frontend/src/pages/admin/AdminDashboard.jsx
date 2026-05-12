@@ -1,17 +1,12 @@
 import { useState, useEffect } from 'react';
 import { authApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
+import {
+  DOCUMENT_STATUSES,
+  SERVICE_REQUEST_STATUS,
+  SERVICE_REQUEST_STATUSES,
+} from '../../domain/statuses';
 
-const REQUEST_STATUSES = [
-  'Submitted',
-  'OfficerAssigned',
-  'AwaitingDocuments',
-  'UnderReview',
-  'DocumentsRejected',
-  'Approved',
-  'Rejected',
-];
-const DOC_STATUSES = ['Submitted', 'UnderReview', 'Approved', 'Rejected'];
 const PAGE_SIZE = 8;
 
 export default function AdminDashboard() {
@@ -154,7 +149,7 @@ function RequestsTab({ onRefreshSummary }) {
       if (changes.status && changes.status !== r.status) {
         await serviceRequestApi.updateStatus(r.id, { status: changes.status });
       }
-      if (changes.officerId && r.status === 'Submitted') {
+      if (changes.officerId && r.status === SERVICE_REQUEST_STATUS.SUBMITTED) {
         await serviceRequestApi.assignOfficerV2(r.id, changes.officerId);
       }
 
@@ -217,7 +212,7 @@ function RequestsTab({ onRefreshSummary }) {
           />
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
-            {REQUEST_STATUSES.map((s) => (
+            {SERVICE_REQUEST_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -278,7 +273,7 @@ function RequestsTab({ onRefreshSummary }) {
                             value={pending[r.id]?.status || r.status}
                             onChange={(e) => setPendingField(r.id, 'status', e.target.value)}
                           >
-                            {REQUEST_STATUSES.map((s) => (
+                            {SERVICE_REQUEST_STATUSES.map((s) => (
                               <option key={s} value={s}>
                                 {s}
                               </option>
@@ -288,7 +283,8 @@ function RequestsTab({ onRefreshSummary }) {
                           <select
                             value={pending[r.id]?.officerId || r.assignedOfficerId || ''}
                             onChange={(e) => setPendingField(r.id, 'officerId', e.target.value)}
-                            disabled={r.status !== 'Submitted'}
+                            disabled={r.status !== SERVICE_REQUEST_STATUS.SUBMITTED}
+
                           >
                             <option value="" disabled>
                               Assign Officer
@@ -463,7 +459,7 @@ function DocumentsTab({ onRefreshSummary }) {
           />
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option value="">All Statuses</option>
-            {DOC_STATUSES.map((s) => (
+            {DOCUMENT_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s}
               </option>
@@ -524,7 +520,7 @@ function DocumentsTab({ onRefreshSummary }) {
                             value={pending[d.id]?.status || d.status}
                             onChange={(e) => setPendingField(d.id, 'status', e.target.value)}
                           >
-                            {DOC_STATUSES.map((s) => (
+                            {DOCUMENT_STATUSES.map((s) => (
                               <option key={s} value={s}>
                                 {s}
                               </option>
