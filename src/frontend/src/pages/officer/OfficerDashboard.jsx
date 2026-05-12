@@ -7,6 +7,7 @@ import {
   SERVICE_REQUEST_STATUS,
   isTerminalStatus,
 } from '../../domain/statuses';
+import { formatDate } from '../../utils/date';
 
 const PAGE_SIZE = 8;
 
@@ -215,7 +216,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
-          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Created:</strong> {formatDate(selected.createdAt)}</div>
           <div>
             <strong>Citizen ID:</strong>{' '}
             <span className="id-cell-inline">{selected.citizenUserId}</span>
@@ -371,7 +372,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
                   <td style={{ minWidth: '180px' }}>
                     <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                   </td>
-                  <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+                  <td>{formatDate(r.createdAt)}</td>
                   <td>
                     <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>
                       Review
@@ -516,7 +517,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
-          <div><strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}</div>
+          <div><strong>Created:</strong> {formatDate(selected.createdAt)}</div>
           <div>
             <strong>Citizen ID:</strong>{' '}
             <span className="id-cell-inline">{selected.citizenUserId}</span>
@@ -672,7 +673,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
                   <td style={{ minWidth: '180px' }}>
                     <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
                   </td>
-                  <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
+                  <td>{formatDate(d.createdAt)}</td>
                   <td>
                     <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>
                       Review

@@ -6,6 +6,7 @@ import {
   SERVICE_REQUEST_STATUS,
   SERVICE_REQUEST_STATUSES,
 } from '../../domain/statuses';
+import { formatDate } from '../../utils/date';
 
 const PAGE_SIZE = 8;
 
@@ -258,7 +259,7 @@ function RequestsTab({ onRefreshSummary }) {
                     <td style={{ minWidth: '180px' }}>
                       <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
                     </td>
-                    <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>{formatDate(r.createdAt)}</td>
                     <td className="actions-cell">
                       {isSaved ? (
                         <button
@@ -505,7 +506,7 @@ function DocumentsTab({ onRefreshSummary }) {
                     <td className="id-cell" title={d.citizenUserId}>
                       {d.citizenUserId || '—'}
                     </td>
-                    <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
+                    <td>{formatDate(d.createdAt)}</td>
                     <td className="actions-cell">
                       {isSaved ? (
                         <button

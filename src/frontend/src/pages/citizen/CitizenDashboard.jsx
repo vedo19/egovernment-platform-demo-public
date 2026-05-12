@@ -7,6 +7,7 @@ import {
   canUploadRequestDocument,
   isPendingStatus,
 } from '../../domain/statuses';
+import { formatDate } from '../../utils/date';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
 const DOC_TYPES = [
@@ -558,7 +559,7 @@ function RequestsTab({ onRefreshSummary }) {
                       '—'
                     )}
                   </td>
-                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>{formatDate(r.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -780,13 +781,10 @@ function DocumentsTab({ onRefreshSummary }) {
                   <td className="desc-cell">{d.rejectionReason || '—'}</td>
                   <td>{d.referenceNumber || '—'}</td>
                   <td>
-                    {canDownloadDocument(d.status)
-                      ? d.expiresAt
-                        ? new Date(d.expiresAt).toLocaleDateString()
-                        : 'No expiry'
-                      : '—'}
+                    {canDownloadDocument(d.status) ? formatDate(d.expiresAt, 'No expiry') : '—'}
+
                   </td>
-                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                  <td>{formatDate(d.createdAt)}</td>
                   <td>
                     {canDownloadDocument(d.status) ? (
                       <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>
