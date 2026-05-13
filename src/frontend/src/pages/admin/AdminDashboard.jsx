@@ -7,11 +7,13 @@ import {
   SERVICE_REQUEST_STATUSES,
 } from '../../domain/statuses';
 import { formatDate } from '../../utils/date';
+import { useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZE = 8;
 
 export default function AdminDashboard() {
-  const [tab, setTab] = useState('requests');
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'requests';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
@@ -64,23 +66,6 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      <div className="tabs">
-        <button
-          className={tab === 'requests' ? 'tab active' : 'tab'}
-          onClick={() => setTab('requests')}
-        >
-          Service Requests
-        </button>
-        <button
-          className={tab === 'documents' ? 'tab active' : 'tab'}
-          onClick={() => setTab('documents')}
-        >
-          Documents
-        </button>
-        <button className={tab === 'users' ? 'tab active' : 'tab'} onClick={() => setTab('users')}>
-          Users
-        </button>
-      </div>
 
       <div className="dashboard-section">
         {tab === 'requests' && <RequestsTab onRefreshSummary={loadSummary} />}

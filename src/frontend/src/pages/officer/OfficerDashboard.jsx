@@ -8,12 +8,14 @@ import {
   isTerminalStatus,
 } from '../../domain/statuses';
 import { formatDate } from '../../utils/date';
+import { useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZE = 8;
 
 export default function OfficerDashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('requests');
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'requests';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
@@ -68,20 +70,6 @@ export default function OfficerDashboard() {
         </div>
       </div>
 
-      <div className="tabs">
-        <button
-          className={tab === 'requests' ? 'tab active' : 'tab'}
-          onClick={() => setTab('requests')}
-        >
-          My Requests
-        </button>
-        <button
-          className={tab === 'documents' ? 'tab active' : 'tab'}
-          onClick={() => setTab('documents')}
-        >
-          My Documents
-        </button>
-      </div>
 
       <div className="dashboard-section">
         {tab === 'requests' && <OfficerRequestsTab onRefreshSummary={loadSummary} />}

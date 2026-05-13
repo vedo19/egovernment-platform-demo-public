@@ -8,6 +8,7 @@ import {
   isPendingStatus,
 } from '../../domain/statuses';
 import { formatDate } from '../../utils/date';
+import { useSearchParams } from 'react-router-dom';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
 const DOC_TYPES = [
@@ -22,7 +23,8 @@ const PAGE_SIZE = 5;
 
 export default function CitizenDashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('profile');
+  const [searchParams] = useSearchParams();
+const tab = searchParams.get('tab') || 'profile';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -82,26 +84,7 @@ export default function CitizenDashboard() {
         </div>
       </div>
 
-      <div className="tabs">
-        <button
-          className={tab === 'profile' ? 'tab active' : 'tab'}
-          onClick={() => setTab('profile')}
-        >
-          Profile
-        </button>
-        <button
-          className={tab === 'requests' ? 'tab active' : 'tab'}
-          onClick={() => setTab('requests')}
-        >
-          Service Requests
-        </button>
-        <button
-          className={tab === 'documents' ? 'tab active' : 'tab'}
-          onClick={() => setTab('documents')}
-        >
-          Documents
-        </button>
-      </div>
+    
 
       <div className="dashboard-section">
         {tab === 'profile' && <ProfileTab />}
