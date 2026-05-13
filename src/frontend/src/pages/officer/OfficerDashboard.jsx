@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
-import {
-  DOCUMENT_STATUS,
-  SERVICE_REQUEST_STATUS,
-  isTerminalStatus,
-} from '../../domain/statuses';
+import AppBadge from '../../components/AppBadge';
+import DataTable from '../../components/DataTable';
+import { DOCUMENT_STATUS, SERVICE_REQUEST_STATUS, isTerminalStatus } from '../../domain/statuses';
 import { formatDate } from '../../utils/date';
+import { getStatusType } from '../../utils/status';
 import { useSearchParams } from 'react-router-dom';
 
 const PAGE_SIZE = 8;
@@ -15,12 +14,20 @@ const PAGE_SIZE = 8;
 export default function OfficerDashboard() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'requests';
+  const tab = searchParams.get('tab') || 'overview';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setSearch('');
+  }, [tab]);
 
   const loadSummary = async () => {
+    setSummaryLoading(true);
     try {
       const [requestsRes, documentsRes] = await Promise.all([
         serviceRequestApi.getMyAssignments(),
@@ -37,6 +44,8 @@ export default function OfficerDashboard() {
       setRequestCount(0);
       setDocumentCount(0);
       setActiveCount(0);
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -44,49 +53,119 @@ export default function OfficerDashboard() {
     loadSummary();
   }, []);
 
+  const renderHeader = () => {
+    if (tab === 'overview') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Service Operations</h2>
+            <p className="subtitle">
+              Process assigned requests, verify documentation, and maintain service standards.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'requests') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Assigned Service Requests</h2>
+            <p className="subtitle">
+              Review active requests assigned to you and take action when needed.
+            </p>
+          </div>
+          <div className="header-actions">
+            <input
+              className="search-input"
+              placeholder="Search requests..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'documents') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Assigned Documents</h2>
+            <p className="subtitle">
+              Process active document requests and update their final outcome.
+            </p>
+          </div>
+          <div className="header-actions">
+            <input
+              className="search-input"
+              placeholder="Search documents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="dashboard-page officer-dashboard">
-      <div className="page-hero">
-        <div>
-          <h1>Officer Dashboard</h1>
-          <p className="subtitle">
-            Welcome, {user?.fullName}. Review assigned requests and process document tasks.
-          </p>
-        </div>
-      </div>
+      <div className="page-hero">{renderHeader()}</div>
 
-      <div className="stats-grid">
-        <div className="card stat-card">
-          <span className="stat-label">Assigned Requests </span>
-          <strong className="stat-value">{requestCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Assigned Documents </span>
-          <strong className="stat-value">{documentCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Active Tasks </span>
-          <strong className="stat-value">{activeCount}</strong>
-        </div>
-      </div>
+      <div className="dashboard-content">
+        {tab === 'overview' && (
+          <div className="stats-grid">
+            <div className="card stat-card">
+              <span className="stat-label">Assigned Requests </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{requestCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Assigned Documents </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{documentCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Active Tasks </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{activeCount}</strong>
+              )}
+            </div>
+          </div>
+        )}
 
-
-      <div className="dashboard-section">
-        {tab === 'requests' && <OfficerRequestsTab onRefreshSummary={loadSummary} />}
-        {tab === 'documents' && <OfficerDocumentsTab onRefreshSummary={loadSummary} />}
+        <div className="dashboard-section">
+          {tab === 'requests' && (
+            <OfficerRequestsTab onRefreshSummary={loadSummary} search={search} user={user} />
+          )}
+          {tab === 'documents' && (
+            <OfficerDocumentsTab onRefreshSummary={loadSummary} search={search} user={user} />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function OfficerRequestsTab({ onRefreshSummary }) {
+function OfficerRequestsTab({ onRefreshSummary, search, user }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [fileBusy, setFileBusy] = useState(false);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -104,6 +183,10 @@ function OfficerRequestsTab({ onRefreshSummary }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const handleAction = async (request, action) => {
     if ((action === 'reject' || action === 'reject-documents') && !notes.trim()) {
@@ -187,24 +270,71 @@ function OfficerRequestsTab({ onRefreshSummary }) {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const columns = [
+    { header: 'Type', key: 'type', className: 'col-type' },
+    { header: 'Title', key: 'title', className: 'col-expand desc-cell' },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (r) => <AppBadge type={getStatusType(r.status)}>{r.status}</AppBadge>,
+    },
+    {
+      header: 'Assign Officer',
+      key: 'assignment',
+      className: 'col-expand',
+      render: () => user?.fullName || '—',
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (r) => <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />,
+    },
+    {
+      header: 'Created',
+      key: 'createdAt',
+      className: 'col-date',
+      render: (r) => formatDate(r.createdAt),
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      className: 'col-action',
+      render: (r) => (
+        <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>
+          Review
+        </button>
+      ),
+    },
+  ];
+
   if (selected) {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>Request Details</h2>
-        </div>
-
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="detail-grid">
-          <div><strong>Type:</strong> {selected.type}</div>
-          <div><strong>Title:</strong> {selected.title}</div>
-          <div><strong>Status:</strong> {selected.status}</div>
+          <div>
+            <strong>Type:</strong> {selected.type}
+          </div>
+          <div>
+            <strong>Title:</strong> {selected.title}
+          </div>
+          <div>
+            <strong>Status:</strong>{' '}
+            <AppBadge type={getStatusType(selected.status)}>{selected.status}</AppBadge>
+          </div>
+          <div>
+            <strong>Assign Officer:</strong> {user?.fullName || '—'}
+          </div>
           <div style={{ gridColumn: '1 / span 2' }}>
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
-          <div><strong>Created:</strong> {formatDate(selected.createdAt)}</div>
+          <div>
+            <strong>Created:</strong> {formatDate(selected.createdAt)}
+          </div>
           <div>
             <strong>Citizen ID:</strong>{' '}
             <span className="id-cell-inline">{selected.citizenUserId}</span>
@@ -312,89 +442,36 @@ function OfficerRequestsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>Assigned Service Requests</h2>
-          <p className="subtitle">
-            Review active requests assigned to you and take action when needed.
-          </p>
-        </div>
-        <input
-          className="search-input"
-          placeholder="Search requests..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching requests.' : 'No pending requests assigned to you.'}
+      />
 
-      {loading ? (
-        <p className="loading-text">Loading requests...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">
-            {search ? 'No matching requests.' : 'No pending requests assigned to you.'}
-          </p>
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
+          </button>
         </div>
-      ) : (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Created</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.type}</td>
-                  <td className="desc-cell">{r.title}</td>
-                  <td>{r.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
-                  </td>
-                  <td>{formatDate(r.createdAt)}</td>
-                  <td>
-                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>
-                      Review
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
 }
 
-function OfficerDocumentsTab({ onRefreshSummary }) {
+function OfficerDocumentsTab({ onRefreshSummary, search, user }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -414,6 +491,10 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const handleAction = async (document, action) => {
     if (action === 'reject' && !reason.trim()) {
@@ -482,7 +563,10 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
 
   const filtered = documents.filter((d) => {
     const q = search.toLowerCase();
-    const typeName = (d.documentType || '').replace(/([A-Z])/g, ' $1').trim().toLowerCase();
+    const typeName = (d.documentType || '')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .toLowerCase();
     const title = (d.title || '').toLowerCase();
     return !q || typeName.includes(q) || title.includes(q);
   });
@@ -491,26 +575,80 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const columns = [
+    {
+      header: 'Type',
+      key: 'documentType',
+      className: 'col-type',
+      render: (d) => d.documentType.replace(/([A-Z])/g, ' $1').trim(),
+    },
+    { header: 'Title', key: 'title', className: 'col-expand desc-cell' },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (d) => <AppBadge type={getStatusType(d.status)}>{d.status}</AppBadge>,
+    },
+    {
+      header: 'Assign Officer',
+      key: 'assignment',
+      className: 'col-expand',
+      render: () => user?.fullName || '—',
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (d) => <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />,
+    },
+    {
+      header: 'Created',
+      key: 'createdAt',
+      className: 'col-date',
+      render: (d) => formatDate(d.createdAt),
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      className: 'col-action',
+      render: (d) => (
+        <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>
+          Review
+        </button>
+      ),
+    },
+  ];
+
   if (selected) {
     return (
       <div className="card">
-        <h2>Document Details</h2>
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="detail-grid">
-          <div><strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}</div>
-          <div><strong>Title:</strong> {selected.title}</div>
-          <div><strong>Status:</strong> {selected.status}</div>
+          <div>
+            <strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}
+          </div>
+          <div>
+            <strong>Title:</strong> {selected.title}
+          </div>
+          <div>
+            <strong>Status:</strong>{' '}
+            <AppBadge type={getStatusType(selected.status)}>{selected.status}</AppBadge>
+          </div>
+          <div>
+            <strong>Assign Officer:</strong> {user?.fullName || '—'}
+          </div>
           <div style={{ gridColumn: '1 / span 2' }}>
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
-          <div><strong>Created:</strong> {formatDate(selected.createdAt)}</div>
+          <div>
+            <strong>Created:</strong> {formatDate(selected.createdAt)}
+          </div>
           <div>
             <strong>Citizen ID:</strong>{' '}
             <span className="id-cell-inline">{selected.citizenUserId}</span>
           </div>
-          <div><strong>Reference #:</strong> {selected.referenceNumber || '—'}</div>
         </div>
 
         {selected.description && (
@@ -613,77 +751,25 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>Assigned Documents</h2>
-          <p className="subtitle">
-            Process active document requests and update their final outcome.
-          </p>
-        </div>
-        <input
-          className="search-input"
-          placeholder="Search documents..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching documents.' : 'No pending documents assigned to you.'}
+      />
 
-      {loading ? (
-        <p className="loading-text">Loading documents...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">
-            {search ? 'No matching documents.' : 'No pending documents assigned to you.'}
-          </p>
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
+          </button>
         </div>
-      ) : (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Created</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
-                  <td className="desc-cell">{d.title}</td>
-                  <td>{d.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
-                  </td>
-                  <td>{formatDate(d.createdAt)}</td>
-                  <td>
-                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>
-                      Review
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>Page {safePage} of {totalPages}</span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
