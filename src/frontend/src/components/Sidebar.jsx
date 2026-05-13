@@ -1,18 +1,22 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { USER_ROLES } from '../domain/roles';
 
 const sidebarItems = {
-  Citizen: [
+  [USER_ROLES.CITIZEN]: [
+    { label: 'Overview', to: '/citizen', tab: 'overview' },
     { label: 'Profile', to: '/citizen', tab: 'profile' },
     { label: 'Service Requests', to: '/citizen', tab: 'requests' },
     { label: 'Document Requests', to: '/citizen', tab: 'documents' },
   ],
-  Admin: [
+  [USER_ROLES.ADMIN]: [
+    { label: 'Overview', to: '/admin', tab: 'overview' },
     { label: 'Service Requests', to: '/admin', tab: 'requests' },
     { label: 'Document Requests', to: '/admin', tab: 'documents' },
     { label: 'Users', to: '/admin', tab: 'users' },
   ],
-  Officer: [
+  [USER_ROLES.OFFICER]: [
+    { label: 'Overview', to: '/officer', tab: 'overview' },
     { label: 'My Requests', to: '/officer', tab: 'requests' },
     { label: 'My Documents', to: '/officer', tab: 'documents' },
   ],
@@ -37,7 +41,9 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         {items.map((item) => {
-          const isActive = location.pathname === item.to && currentTab === item.tab;
+          const isActive =
+            location.pathname === item.to &&
+            (currentTab === item.tab || (!currentTab && item.tab === 'overview'));
 
           return (
             <Link

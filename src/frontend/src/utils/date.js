@@ -7,5 +7,9 @@ export function formatDate(value, fallback = '—') {
     return fallback;
   }
 
-  return date.toLocaleDateString();
+  return date.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
