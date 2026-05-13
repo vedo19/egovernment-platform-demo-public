@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { USER_ROLES } from '../../domain/roles';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,18 +21,22 @@ export default function LoginPage() {
     try {
       const userData = await login(email.trim(), password);
 
-      if (userData.role === 'Citizen') {
+      if (userData.role === USER_ROLES.CITIZEN) {
         navigate('/citizen');
-      } else if (userData.role === 'Officer') {
+      } else if (userData.role === USER_ROLES.OFFICER) {
         navigate('/officer');
-      } else if (userData.role === 'Admin') {
+      } else if (userData.role === USER_ROLES.ADMIN) {
         navigate('/admin');
       } else {
         navigate('/');
       }
     } catch (err) {
       const d = err.response?.data;
-      setError(typeof d === 'string' ? d : d?.message || d?.title || 'Invalid credentials, please try again.');
+      setError(
+        typeof d === 'string'
+          ? d
+          : d?.message || d?.title || 'Invalid credentials, please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -67,25 +72,24 @@ export default function LoginPage() {
 
             <div className="password-input-wrapper">
               <input
-              id="password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
 
-            <button
-            type="button"
-            className="password-toggle"
-            onClick={() => setShowPassword((current) => !current)}
-            >
-              {showPassword ? 'Hide' : 'Show'}
-            </button>
+              <button
+                type="button"
+                className="password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
-        </div>
-
 
           <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}
