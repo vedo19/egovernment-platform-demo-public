@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
 import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
+import AppSelect from '../../components/AppSelect';
+import AppBadge from '../../components/AppBadge';
+import DataTable from '../../components/DataTable';
 import {
   canDownloadDocument,
   canUploadRequestDocument,
   isPendingStatus,
 } from '../../domain/statuses';
 import { formatDate } from '../../utils/date';
+import { getStatusType } from '../../utils/status';
 import { useSearchParams } from 'react-router-dom';
 
 const REQUEST_TYPES = ['Permit', 'Complaint'];
@@ -22,35 +25,53 @@ const DOC_TYPES = [
 const PAGE_SIZE = 5;
 
 export default function CitizenDashboard() {
-  const { user } = useAuth();
   const [searchParams] = useSearchParams();
-const tab = searchParams.get('tab') || 'profile';
+  const tab = searchParams.get('tab') || 'overview';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+  // We need to know if tabs are in 'new' mode to hide search/filters in hero
+  const [tabMode, setTabMode] = useState('list');
+
+  useEffect(() => {
+    setSearch('');
+    setTabMode('list');
+  }, [tab]);
 
   const loadSummary = async () => {
+    setSummaryLoading(true);
     try {
-      const [requestsRes, documentsRes] = await Promise.all([
+      const [requestsRes, documentsRes, profileRes] = await Promise.all([
         serviceRequestApi.getMyRequests(),
         documentApi.getMyDocuments(),
+        citizenApi.getProfile().catch(() => ({ data: null })),
       ]);
 
       const requests = requestsRes.data || [];
       const documents = documentsRes.data || [];
+      setProfile(profileRes.data);
+      setProfileLoading(false);
 
       setRequestCount(requests.length);
       setDocumentCount(documents.length);
 
-      const pendingItems = [...requests, ...documents].filter((item) => 
+      const pendingItems = [...requests, ...documents].filter((item) =>
         isPendingStatus(item?.status)
-    );
+      );
 
       setPendingCount(pendingItems.length);
     } catch {
       setRequestCount(0);
       setDocumentCount(0);
       setPendingCount(0);
+      setProfileLoading(false);
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -58,47 +79,170 @@ const tab = searchParams.get('tab') || 'profile';
     loadSummary();
   }, []);
 
+  const renderHeader = () => {
+    if (tab === 'overview') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Citizen Services Portal</h2>
+            <p className="subtitle">
+              Securely access government services, manage documents, and track your applications.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'profile') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>
+              {tabMode === 'editing'
+                ? profile
+                  ? 'Edit Profile'
+                  : 'Create Profile'
+                : 'Your Profile'}
+            </h2>
+            <p className="subtitle">Manage your personal information and contact details.</p>
+          </div>
+          {tabMode !== 'editing' && profile && (
+            <div className="header-actions">
+              <button className="btn btn-primary" onClick={() => setTabMode('editing')}>
+                Edit Profile
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (tab === 'requests') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>{tabMode === 'new' ? 'New Service Request' : 'My Service Requests'}</h2>
+            <p className="subtitle">
+              {tabMode === 'new'
+                ? 'Submit a new application for government services.'
+                : 'Track request status and review any administrative notes.'}
+            </p>
+          </div>
+          {tabMode === 'list' && (
+            <div className="header-actions">
+              <input
+                className="search-input"
+                placeholder="Search requests..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <button className="btn btn-primary" onClick={() => setTabMode('new')}>
+                New Request
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (tab === 'documents') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>{tabMode === 'new' ? 'New Document Request' : 'My Documents'}</h2>
+            <p className="subtitle">
+              {tabMode === 'new'
+                ? 'Apply for official documentation from the relevant authorities.'
+                : 'Track requested documents and follow their processing status.'}
+            </p>
+          </div>
+          {tabMode === 'list' && (
+            <div className="header-actions">
+              <input
+                className="search-input"
+                placeholder="Search documents..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <button className="btn btn-primary" onClick={() => setTabMode('new')}>
+                Request Document
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="dashboard-page citizen-dashboard">
-      <div className="page-hero">
-        <div>
-          <h1>Welcome, {user?.fullName}</h1>
-          <p className="subtitle">
-            Manage your profile, submit service requests, and track official documents in one place.
-          </p>
-        </div>
-      </div>
+      <div className="page-hero">{renderHeader()}</div>
 
-      <div className="stats-grid">
-        <div className="card stat-card">
-          <span className="stat-label">Service Requests </span>
-          <strong className="stat-value">{requestCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Documents </span>
-          <strong className="stat-value">{documentCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Pending Items </span>
-          <strong className="stat-value">{pendingCount}</strong>
-        </div>
-      </div>
+      <div className="dashboard-content">
+        {tab === 'overview' && (
+          <div className="stats-grid">
+            <div className="card stat-card">
+              <span className="stat-label">Service Requests </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{requestCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Documents </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{documentCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Pending Items </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{pendingCount}</strong>
+              )}
+            </div>
+          </div>
+        )}
 
-    
-
-      <div className="dashboard-section">
-        {tab === 'profile' && <ProfileTab />}
-        {tab === 'requests' && <RequestsTab onRefreshSummary={loadSummary} />}
-        {tab === 'documents' && <DocumentsTab onRefreshSummary={loadSummary} />}
+        <div className="dashboard-section">
+          {tab === 'profile' && (
+            <ProfileTab
+              profile={profile}
+              loading={profileLoading}
+              mode={tabMode}
+              setMode={setTabMode}
+              onRefresh={loadSummary}
+            />
+          )}
+          {tab === 'requests' && (
+            <RequestsTab
+              onRefreshSummary={loadSummary}
+              search={search}
+              mode={tabMode}
+              setMode={setTabMode}
+            />
+          )}
+          {tab === 'documents' && (
+            <DocumentsTab
+              onRefreshSummary={loadSummary}
+              search={search}
+              mode={tabMode}
+              setMode={setTabMode}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function ProfileTab() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState(false);
+function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
   const [form, setForm] = useState({
     phoneNumber: '',
     address: '',
@@ -110,29 +254,20 @@ function ProfileTab() {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  const editing = mode === 'editing';
 
-  const loadProfile = async () => {
-    setLoading(true);
-    try {
-      const { data } = await citizenApi.getProfile();
-      setProfile(data);
+  useEffect(() => {
+    if (profile) {
       setForm({
-        phoneNumber: data.phoneNumber || '',
-        address: data.address || '',
-        dateOfBirth: data.dateOfBirth || '',
-        nationalId: data.nationalId || '',
-        city: data.city || '',
-        gender: data.gender || '',
+        phoneNumber: profile.phoneNumber || '',
+        address: profile.address || '',
+        dateOfBirth: profile.dateOfBirth || '',
+        nationalId: profile.nationalId || '',
+        city: profile.city || '',
+        gender: profile.gender || '',
       });
-    } catch (err) {
-      if (err.response?.status === 404) setProfile(null);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [profile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -148,8 +283,8 @@ function ProfileTab() {
         setMsg('Profile created successfully');
       }
 
-      setEditing(false);
-      await loadProfile();
+      setMode('list');
+      await onRefresh();
     } catch (err) {
       const d = err.response?.data;
       setError(
@@ -163,7 +298,26 @@ function ProfileTab() {
   if (loading) {
     return (
       <div className="card">
-        <p className="loading-text">Loading profile...</p>
+        <div className="section-header">
+          <div>
+            <div
+              className="skeleton"
+              style={{ width: '120px', height: '1.2rem', marginBottom: '0.5rem' }}
+            ></div>
+            <div className="skeleton" style={{ width: '250px', height: '0.8rem' }}></div>
+          </div>
+        </div>
+        <div className="detail-grid">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} style={{ height: '3.5rem', display: 'flex', alignItems: 'center' }}>
+              <div
+                className="skeleton"
+                style={{ width: '30%', height: '0.8rem', marginRight: '1rem' }}
+              ></div>
+              <div className="skeleton" style={{ width: '50%', height: '0.8rem' }}></div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -173,7 +327,7 @@ function ProfileTab() {
       <div className="card empty-state-card">
         <h2>Profile Information</h2>
         <p className="subtitle">Complete your personal information to use services more easily.</p>
-        <button className="btn btn-primary" onClick={() => setEditing(true)}>
+        <button className="btn btn-primary" onClick={() => setMode('editing')}>
           Create Profile
         </button>
       </div>
@@ -183,10 +337,6 @@ function ProfileTab() {
   if (editing) {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>{profile ? 'Edit Profile' : 'Create Profile'}</h2>
-        </div>
-
         {error && <div className="alert alert-error">{error}</div>}
         {msg && <div className="alert alert-success">{msg}</div>}
 
@@ -240,15 +390,13 @@ function ProfileTab() {
 
             <div className="form-group">
               <label>Gender</label>
-              <select
+              <AppSelect
                 value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                onChange={(val) => setForm({ ...form, gender: val })}
                 required
-              >
-                <option value="">Select...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
+                placeholder="Select..."
+                options={['Male', 'Female', 'Other']}
+              />
             </div>
           </div>
 
@@ -256,7 +404,7 @@ function ProfileTab() {
             <button type="submit" className="btn btn-primary">
               Save Profile
             </button>
-            <button type="button" className="btn btn-outline" onClick={() => setEditing(false)}>
+            <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
               Cancel
             </button>
           </div>
@@ -267,13 +415,6 @@ function ProfileTab() {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <h2>Your Profile</h2>
-        <button className="btn btn-primary" onClick={() => setEditing(true)}>
-          Edit Profile
-        </button>
-      </div>
-
       {msg && <div className="alert alert-success">{msg}</div>}
 
       <div className="profile-info-grid">
@@ -306,17 +447,15 @@ function ProfileTab() {
   );
 }
 
-function RequestsTab({ onRefreshSummary }) {
+function RequestsTab({ onRefreshSummary, search, mode, setMode }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showing, setShowing] = useState('list');
   const [form, setForm] = useState({
     type: 'Permit',
     title: '',
     description: '',
   });
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [uploadingId, setUploadingId] = useState(null);
   const [uploadError, setUploadError] = useState('');
@@ -338,6 +477,10 @@ function RequestsTab({ onRefreshSummary }) {
     }
   };
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -345,7 +488,7 @@ function RequestsTab({ onRefreshSummary }) {
     try {
       await serviceRequestApi.create(form);
       setForm({ type: 'Permit', title: '', description: '' });
-      setShowing('list');
+      setMode('list');
       await loadRequests();
       onRefreshSummary?.();
     } catch (err) {
@@ -404,25 +547,76 @@ function RequestsTab({ onRefreshSummary }) {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  if (showing === 'new') {
+  const columns = [
+    { header: 'Type', key: 'type', className: 'col-type' },
+    { header: 'Title', key: 'title', className: 'col-expand' },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (r) => <AppBadge type={getStatusType(r.status)}>{r.status}</AppBadge>,
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (r) => <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />,
+    },
+    {
+      header: 'Officer Note',
+      key: 'officerNote',
+      className: 'col-expand desc-cell',
+      render: (r) =>
+        canUploadRequestDocument(r.status) ? r.officerNote || 'No note provided' : '—',
+    },
+    {
+      header: 'Upload PDF',
+      key: 'upload',
+      className: 'col-expand',
+      render: (r) =>
+        canUploadRequestDocument(r.status) ? (
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            disabled={uploadingId === r.id}
+            onChange={(e) => handleDocumentUpload(r.id, e.target.files?.[0])}
+          />
+        ) : (
+          '—'
+        ),
+    },
+    {
+      header: 'Uploaded PDF',
+      key: 'linkedDocumentId',
+      render: (r) =>
+        r.linkedDocumentId ? (
+          <button
+            className="btn btn-sm btn-outline"
+            disabled={documentBusyId === r.id}
+            onClick={() => handleOpenDocument(r)}
+          >
+            {documentBusyId === r.id ? 'Opening...' : 'View'}
+          </button>
+        ) : (
+          '—'
+        ),
+    },
+    { header: 'Created', key: 'createdAt', render: (r) => formatDate(r.createdAt) },
+  ];
+
+  if (mode === 'new') {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>New Service Request</h2>
-        </div>
-
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Type</label>
-            <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-              {REQUEST_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </select>
+            <AppSelect
+              value={form.type}
+              onChange={(val) => setForm({ ...form, type: val })}
+              options={REQUEST_TYPES}
+            />
           </div>
 
           <div className="form-group">
@@ -448,7 +642,7 @@ function RequestsTab({ onRefreshSummary }) {
             <button type="submit" className="btn btn-primary">
               Submit Request
             </button>
-            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>
+            <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
               Cancel
             </button>
           </div>
@@ -459,125 +653,41 @@ function RequestsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>My Service Requests</h2>
-          <p className="subtitle">Track request status and review any administrative notes.</p>
-        </div>
+      {uploadError && <div className="alert alert-error">{uploadError}</div>}
 
-        <div className="header-actions">
-          <input
-            className="search-input"
-            placeholder="Search requests..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-          <button className="btn btn-primary" onClick={() => setShowing('new')}>
-            New Request
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching requests.' : 'No service requests yet.'}
+      />
+
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
           </button>
         </div>
-      </div>
-
-      {loading ? (
-        <p className="loading-text">Loading requests...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">{search ? 'No matching requests.' : 'No service requests yet.'}</p>
-        </div>
-      ) : (
-        <>
-          {uploadError && <div className="alert alert-error">{uploadError}</div>}
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Officer Note</th>
-                <th>Upload PDF</th>
-                <th>Uploaded PDF</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.type}</td>
-                  <td>{r.title}</td>
-                  <td>{r.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
-                  </td>
-                  <td className="desc-cell">
-                    {canUploadRequestDocument(r.status)
-                      ? r.officerNote || 'No note provided'
-                      : '—'}
-                  </td>
-                  <td>
-                    {canUploadRequestDocument(r.status) ? (
-                      <input
-                        type="file"
-                        accept="application/pdf,.pdf"
-                        disabled={uploadingId === r.id}
-                        onChange={(e) => handleDocumentUpload(r.id, e.target.files?.[0])}
-                      />
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td>
-                    {r.linkedDocumentId ? (
-                      <button
-                        className="btn btn-sm btn-outline"
-                        disabled={documentBusyId === r.id}
-                        onClick={() => handleOpenDocument(r)}
-                      >
-                        {documentBusyId === r.id ? 'Opening...' : 'View'}
-                      </button>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                  <td>{formatDate(r.createdAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>
-                Page {safePage} of {totalPages}
-              </span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
 }
 
-function DocumentsTab({ onRefreshSummary }) {
+function DocumentsTab({ onRefreshSummary, search, mode, setMode }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showing, setShowing] = useState('list');
   const [form, setForm] = useState({
     documentType: 'BirthCertificate',
     title: '',
     description: '',
   });
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -596,6 +706,10 @@ function DocumentsTab({ onRefreshSummary }) {
     }
   };
 
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -603,7 +717,7 @@ function DocumentsTab({ onRefreshSummary }) {
     try {
       await documentApi.create(form);
       setForm({ documentType: 'BirthCertificate', title: '', description: '' });
-      setShowing('list');
+      setMode('list');
       await loadDocuments();
       onRefreshSummary?.();
     } catch (err) {
@@ -642,37 +756,82 @@ function DocumentsTab({ onRefreshSummary }) {
       .trim()
       .toLowerCase();
     const status = (d.status || '').toLowerCase();
-    const referenceNumber = (d.referenceNumber || '').toLowerCase();
 
-    return !q || typeName.includes(q) || status.includes(q) || referenceNumber.includes(q);
+    return !q || typeName.includes(q) || status.includes(q);
   });
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  if (showing === 'new') {
+  const columns = [
+    {
+      header: 'Type',
+      key: 'documentType',
+      className: 'col-type',
+      render: (d) => d.documentType.replace(/([A-Z])/g, ' $1').trim(),
+    },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (d) => <AppBadge type={getStatusType(d.status)}>{d.status}</AppBadge>,
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (d) => <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />,
+    },
+    {
+      header: 'Reason',
+      key: 'rejectionReason',
+      className: 'col-expand desc-cell',
+      render: (d) => d.rejectionReason || '—',
+    },
+    {
+      header: 'Expires',
+      key: 'expiresAt',
+      className: 'col-date',
+      render: (d) => (canDownloadDocument(d.status) ? formatDate(d.expiresAt, 'No expiry') : '—'),
+    },
+    {
+      header: 'Created',
+      key: 'createdAt',
+      className: 'col-date',
+      render: (d) => formatDate(d.createdAt),
+    },
+    {
+      header: 'Actions',
+      key: 'actions',
+      className: 'col-action',
+      render: (d) =>
+        canDownloadDocument(d.status) ? (
+          <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>
+            Download
+          </button>
+        ) : (
+          '—'
+        ),
+    },
+  ];
+
+  if (mode === 'new') {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>Request New Document</h2>
-        </div>
-
         {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Document Type</label>
-            <select
+            <AppSelect
               value={form.documentType}
-              onChange={(e) => setForm({ ...form, documentType: e.target.value })}
-            >
-              {DOC_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t.replace(/([A-Z])/g, ' $1').trim()}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setForm({ ...form, documentType: val })}
+              options={DOC_TYPES.map((t) => ({
+                label: t.replace(/([A-Z])/g, ' $1').trim(),
+                value: t,
+              }))}
+            />
           </div>
 
           <div className="form-group">
@@ -697,7 +856,7 @@ function DocumentsTab({ onRefreshSummary }) {
             <button type="submit" className="btn btn-primary">
               Submit Request
             </button>
-            <button type="button" className="btn btn-outline" onClick={() => setShowing('list')}>
+            <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
               Cancel
             </button>
           </div>
@@ -708,94 +867,25 @@ function DocumentsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>My Documents</h2>
-          <p className="subtitle">Track requested documents and follow their processing status.</p>
-        </div>
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching documents.' : 'No documents requested yet.'}
+      />
 
-        <div className="header-actions">
-          <input
-            className="search-input"
-            placeholder="Search documents..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-          />
-          <button className="btn btn-primary" onClick={() => setShowing('new')}>
-            Request Document
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
           </button>
         </div>
-      </div>
-
-      {loading ? (
-        <p className="loading-text">Loading documents...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">
-            {search ? 'No matching documents.' : 'No documents requested yet.'}
-          </p>
-        </div>
-      ) : (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Reason</th>
-                <th>Reference #</th>
-                <th>Expires</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
-                  <td>{d.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
-                  </td>
-                  <td className="desc-cell">{d.rejectionReason || '—'}</td>
-                  <td>{d.referenceNumber || '—'}</td>
-                  <td>
-                    {canDownloadDocument(d.status) ? formatDate(d.expiresAt, 'No expiry') : '—'}
-
-                  </td>
-                  <td>{formatDate(d.createdAt)}</td>
-                  <td>
-                    {canDownloadDocument(d.status) ? (
-                      <button className="btn btn-sm btn-primary" onClick={() => handleDownload(d)}>
-                        Download
-                      </button>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>
-                Page {safePage} of {totalPages}
-              </span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
