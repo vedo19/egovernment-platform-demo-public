@@ -1,4 +1,5 @@
 using System.Text;
+using Prometheus;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -98,11 +99,13 @@ using (var scope = app.Services.CreateScope())
 
 // ---------- Middleware Pipeline ----------
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpMetrics();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMetrics();
 app.MapHealthChecks("/healthz");
 
 app.Run();
