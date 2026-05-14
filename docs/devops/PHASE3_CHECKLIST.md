@@ -6,6 +6,7 @@ Goal: All repository services running in Kubernetes with NGINX Ingress routing.
 ## Scope Alignment
 
 This repository currently deploys these six services:
+
 - `auth-service`
 - `citizen-service`
 - `service-request-service`

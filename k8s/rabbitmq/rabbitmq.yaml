@@ -30,9 +30,9 @@ spec:
       labels:
         app: rabbitmq
       annotations:
-        prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
-        prometheus.io/port: "15692"
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: '/metrics'
+        prometheus.io/port: '15692'
     spec:
       containers:
         - name: rabbitmq
@@ -46,9 +46,9 @@ spec:
               name: prometheus
           env:
             - name: RABBITMQ_ENABLED_PLUGINS
-              value: "rabbitmq_management,rabbitmq_prometheus"
+              value: 'rabbitmq_management,rabbitmq_prometheus'
             - name: RABBITMQ_ENABLED_PLUGINS_FILE
-              value: "/var/lib/rabbitmq/enabled_plugins"
+              value: '/var/lib/rabbitmq/enabled_plugins'
             - name: RABBITMQ_DEFAULT_USER
               valueFrom:
                 secretKeyRef:
