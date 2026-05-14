@@ -1,4 +1,5 @@
 using System.Text;
+using Prometheus;
 using DocumentService.Data;
 using DocumentService.Middleware;
 using DocumentService.Services;
@@ -79,6 +80,7 @@ builder.Services.AddHttpClient("CitizenService", client =>
 });
 builder.Services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 builder.Services.AddScoped<IDocumentService, DocumentServiceImpl>();
+builder.Services.AddHostedService<ServiceRequestCreatedConsumer>();
 builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------
@@ -101,11 +103,13 @@ using (var scope = app.Services.CreateScope())
 
 // ---------- Middleware Pipeline ----------
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpMetrics();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMetrics();
 app.MapHealthChecks("/healthz");
 
 app.Run();

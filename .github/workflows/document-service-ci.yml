@@ -1,16 +1,16 @@
-name: Auth Service CI
+name: Document Service CI
 
 on:
   push:
     branches: [main]
     paths:
-      - 'src/AuthService/**'
-      - '.github/workflows/auth-service-ci.yml'
+      - 'src/DocumentService/**'
+      - '.github/workflows/document-service-ci.yml'
   pull_request:
     branches: [main]
     paths:
-      - 'src/AuthService/**'
-      - '.github/workflows/auth-service-ci.yml'
+      - 'src/DocumentService/**'
+      - '.github/workflows/document-service-ci.yml'
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/auth-service
+  IMAGE_NAME: ${{ github.repository }}/document-service
 
 jobs:
   build-and-test:
@@ -32,22 +32,22 @@ jobs:
         with:
           dotnet-version: '10.0.x'
           cache: true
-          cache-dependency-path: src/AuthService/AuthService.csproj
+          cache-dependency-path: src/DocumentService/DocumentService.csproj
 
       - name: Restore dependencies
-        run: dotnet restore src/AuthService/AuthService.csproj
+        run: dotnet restore src/DocumentService/DocumentService.csproj
 
       - name: Build
-        run: dotnet build src/AuthService/AuthService.csproj --configuration Release --no-restore
+        run: dotnet build src/DocumentService/DocumentService.csproj --configuration Release --no-restore
 
       - name: Test
-        run: dotnet test src/AuthService/AuthService.csproj --configuration Release --no-build --logger "console;method=trx" --results-directory ./TestResults
+        run: dotnet test src/DocumentService/DocumentService.csproj --configuration Release --no-build --logger "console;method=trx" --results-directory ./TestResults
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: auth-service-test-results
+          name: document-service-test-results
           path: TestResults/*.trx
           retention-days: 30
 
@@ -55,19 +55,19 @@ jobs:
         uses: dorny/test-reporter@v1
         if: always()
         with:
-          name: Auth Service Tests
+          name: Document Service Tests
           path: TestResults/*.trx
           reporter: dotnet-trx
 
       - name: Generate coverage report
-        run: dotnet test src/AuthService/AuthService.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        run: dotnet test src/DocumentService/DocumentService.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
         continue-on-error: true
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: auth-service-coverage
+          name: document-service-coverage
           path: '**/coverage.cobertura.xml'
           retention-days: 30
 
@@ -106,7 +106,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: ./src/AuthService
+          context: ./src/DocumentService
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
