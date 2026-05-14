@@ -1,5 +1,6 @@
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,17 +39,24 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 }
 
 app.UseCors("AllowFrontend");
+app.UseHttpMetrics();
 
-// ---------- Gateway Health Check ----------
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "ApiGateway" }));
+app.UseRouting();
+
+app.UseEndpoints(endpoints =>
+{
+    // ---------- Gateway Health Check ----------
+    endpoints.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "ApiGateway" }));
+    endpoints.MapMetrics();
+});
 
 await app.UseOcelot();
 
 app.Run();
 
-static Dictionary<string, string> BuildOcelotOverrides(IConfiguration config)
+static Dictionary<string, string?> BuildOcelotOverrides(IConfiguration config)
 {
-    var overrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var overrides = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
     ApplyServiceRouteOverride(overrides, config, "AuthService:Url", new[] { 0 });
     ApplyServiceRouteOverride(overrides, config, "CitizenService:Url", new[] { 1, 2 });
@@ -65,7 +73,7 @@ static Dictionary<string, string> BuildOcelotOverrides(IConfiguration config)
 }
 
 static void ApplyServiceRouteOverride(
-    IDictionary<string, string> overrides,
+    IDictionary<string, string?> overrides,
     IConfiguration config,
     string endpointKey,
     IEnumerable<int> routeIndexes)

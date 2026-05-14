@@ -1,0 +1,126 @@
+name: Service Request Service CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/ServiceRequestService/**'
+      - '.github/workflows/service-request-service-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/ServiceRequestService/**'
+      - '.github/workflows/service-request-service-ci.yml'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/service-request-service
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: src/ServiceRequestService/ServiceRequestService.csproj
+
+      - name: Restore dependencies
+        run: dotnet restore src/ServiceRequestService/ServiceRequestService.csproj
+
+      - name: Build
+        run: dotnet build src/ServiceRequestService/ServiceRequestService.csproj --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test src/ServiceRequestService/ServiceRequestService.csproj --configuration Release --no-build --logger "console;method=trx" --results-directory ./TestResults
+
+      - name: Check for test results
+        id: check_test_results
+        if: always()
+        run: |
+          if [ -d "TestResults" ] && [ "$(ls -A TestResults/*.trx 2>/dev/null)" ]; then
+            echo "has_results=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_results=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always() && steps.check_test_results.outputs.has_results == 'true'
+        with:
+          name: service-request-service-test-results
+          path: TestResults/*.trx
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always() && steps.check_test_results.outputs.has_results == 'true'
+        with:
+          name: Service Request Service Tests
+          path: TestResults/*.trx
+          reporter: dotnet-trx
+
+      - name: Generate coverage report
+        run: dotnet test src/ServiceRequestService/ServiceRequestService.csproj --configuration Release --no-build --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+        continue-on-error: true
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: service-request-service-coverage
+          path: '**/coverage.cobertura.xml'
+          retention-days: 30
+          if-no-files-found: ignore
+
+  docker-build-and-push:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./src/ServiceRequestService
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

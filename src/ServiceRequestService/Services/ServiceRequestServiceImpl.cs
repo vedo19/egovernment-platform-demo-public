@@ -10,11 +10,16 @@ public class ServiceRequestServiceImpl : IServiceRequestService
 {
     private readonly ServiceRequestDbContext _context;
     private readonly IDocumentStorageClient _documentStorageClient;
+    private readonly IServiceRequestEventPublisher _eventPublisher;
 
-    public ServiceRequestServiceImpl(ServiceRequestDbContext context, IDocumentStorageClient documentStorageClient)
+    public ServiceRequestServiceImpl(
+        ServiceRequestDbContext context,
+        IDocumentStorageClient documentStorageClient,
+        IServiceRequestEventPublisher eventPublisher)
     {
         _context = context;
         _documentStorageClient = documentStorageClient;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<ServiceRequestDto> CreateAsync(Guid citizenUserId, CreateServiceRequestDto request)
@@ -34,6 +39,7 @@ public class ServiceRequestServiceImpl : IServiceRequestService
 
         _context.ServiceRequests.Add(serviceRequest);
         await _context.SaveChangesAsync();
+        await _eventPublisher.PublishCreatedAsync(serviceRequest);
 
         return MapToDto(serviceRequest);
     }
