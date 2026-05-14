@@ -7,7 +7,7 @@ Goal: Fully automated build-test-push pipeline for all 6 services.
 | #   | Task                             | Details                                                                                              | Status    |
 | --- | -------------------------------- | ---------------------------------------------------------------------------------------------------- | --------- |
 | 4.1 | Finalise CI workflow per service | Create 6 workflow files with path filters (services/X/\*\*), .NET cache, build + test steps          | ✅ Done   |
-| 4.2 | Add TRX test reporting           | Integrate dorny/test-reporter@v1 with always() condition to publish .NET TRX results even on failure | ✅ Done   |
+| 4.2 | Add TRX test reporting           | Integrate dorny/test-reporter@v1 with conditional execution to publish .NET TRX results only when available | ✅ Done   |
 | 4.3 | Add Docker build-and-push job    | Job 2: login to ghcr.io, build multi-stage image, push with latest + SHA tags. Only on main branch   | ✅ Done   |
 | 4.4 | Configure branch protection      | Require CI pass before merge to main. Require PR reviews                                             | 🔲 Manual |
 | 4.5 | Verify pipeline speed target     | Full pipeline run must complete in < 10 minutes (KPI). Optimise .NET cache and Docker layer caching  | 🔲 Verify |
