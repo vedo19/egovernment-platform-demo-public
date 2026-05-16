@@ -98,15 +98,11 @@ export default function CitizenDashboard() {
         <div className="section-header">
           <div>
             <h2>
-              {tabMode === 'editing'
-                ? profile
-                  ? 'Edit Profile'
-                  : 'Create Profile'
-                : 'Your Profile'}
+              {tabMode === 'editing' ? 'Edit Profile' : 'View Profile'}
             </h2>
             <p className="subtitle">Manage your personal information and contact details.</p>
           </div>
-          {tabMode !== 'editing' && profile && (
+          {tabMode !== 'editing' && (
             <div className="header-actions">
               <button className="btn btn-primary" onClick={() => setTabMode('editing')}>
                 Edit Profile
@@ -243,6 +239,8 @@ export default function CitizenDashboard() {
 }
 
 function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
+  const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
   const [form, setForm] = useState({
     phoneNumber: '',
     address: '',
@@ -251,6 +249,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
     city: '',
     gender: '',
   });
+
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -266,11 +265,21 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
         city: profile.city || '',
         gender: profile.gender || '',
       });
+    } else {
+      setForm({
+        phoneNumber: '',
+        address: savedUser.placeOfResidence || '',
+        dateOfBirth: savedUser.dateOfBirth || '',
+        nationalId: savedUser.jmb || '',
+        city: savedUser.placeOfResidence || '',
+        gender: savedUser.gender || '',
+      });
     }
   }, [profile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setError('');
     setMsg('');
 
@@ -287,10 +296,14 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
       await onRefresh();
     } catch (err) {
       const d = err.response?.data;
+
       setError(
         typeof d === 'string'
           ? d
-          : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to save profile'
+          : d?.message ||
+              d?.title ||
+              JSON.stringify(d?.errors || d) ||
+              'Failed to save profile'
       );
     }
   };
@@ -302,19 +315,49 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
           <div>
             <div
               className="skeleton"
-              style={{ width: '120px', height: '1.2rem', marginBottom: '0.5rem' }}
+              style={{
+                width: '120px',
+                height: '1.2rem',
+                marginBottom: '0.5rem',
+              }}
             ></div>
-            <div className="skeleton" style={{ width: '250px', height: '0.8rem' }}></div>
+
+            <div
+              className="skeleton"
+              style={{
+                width: '250px',
+                height: '0.8rem',
+              }}
+            ></div>
           </div>
         </div>
+
         <div className="detail-grid">
           {[...Array(6)].map((_, i) => (
-            <div key={i} style={{ height: '3.5rem', display: 'flex', alignItems: 'center' }}>
+            <div
+              key={i}
+              style={{
+                height: '3.5rem',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               <div
                 className="skeleton"
-                style={{ width: '30%', height: '0.8rem', marginRight: '1rem' }}
+                style={{
+                  width: '30%',
+                  height: '0.8rem',
+                  marginRight: '1rem',
+                }}
               ></div>
-              <div className="skeleton" style={{ width: '50%', height: '0.8rem' }}></div>
+
+              <div
+                className="skeleton"
+                style={{
+                  width: '50%',
+                  height: '0.8rem',
+                }}
+              ></div>
             </div>
           ))}
         </div>
@@ -322,17 +365,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
     );
   }
 
-  if (!profile && !editing) {
-    return (
-      <div className="card empty-state-card">
-        <h2>Profile Information</h2>
-        <p className="subtitle">Complete your personal information to use services more easily.</p>
-        <button className="btn btn-primary" onClick={() => setMode('editing')}>
-          Create Profile
-        </button>
-      </div>
-    );
-  }
+  // Always fall through to the view — registration data is always available
 
   if (editing) {
     return (
@@ -344,55 +377,91 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
           <div className="detail-grid">
             <div className="form-group">
               <label>Phone Number</label>
+
               <input
                 value={form.phoneNumber}
-                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    phoneNumber: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>City</label>
+
               <input
                 value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    city: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Address</label>
+
               <input
                 value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    address: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Date of Birth</label>
+
               <input
                 type="date"
                 value={form.dateOfBirth}
-                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    dateOfBirth: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>National ID</label>
+
               <input
                 value={form.nationalId}
-                onChange={(e) => setForm({ ...form, nationalId: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    nationalId: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Gender</label>
+
               <AppSelect
                 value={form.gender}
-                onChange={(val) => setForm({ ...form, gender: val })}
+                onChange={(val) =>
+                  setForm({
+                    ...form,
+                    gender: val,
+                  })
+                }
                 required
                 placeholder="Select..."
                 options={['Male', 'Female', 'Other']}
@@ -404,7 +473,12 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
             <button type="submit" className="btn btn-primary">
               Save Profile
             </button>
-            <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
+
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setMode('list')}
+            >
               Cancel
             </button>
           </div>
@@ -413,35 +487,59 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
     );
   }
 
+  const fields = [
+    // ── Account ──
+    { section: 'Account', label: 'Full Name',          value: savedUser.fullName },
+    { section: 'Account', label: 'Email',              value: savedUser.email },
+    // ── Personal Information ──
+    { section: 'Personal Information', label: 'First Name',    value: savedUser.name },
+    { section: 'Personal Information', label: 'Surname',       value: savedUser.surname },
+    { section: 'Personal Information', label: 'JMB (National ID)', value: savedUser.jmb },
+    { section: 'Personal Information', label: 'Gender',        value: savedUser.gender || form.gender },
+    { section: 'Personal Information', label: 'Date of Birth', value: savedUser.dateOfBirth || form.dateOfBirth },
+    { section: 'Personal Information', label: 'Place of Birth', value: savedUser.placeOfBirth },
+    // ── Address & Citizenship ──
+    { section: 'Address & Citizenship', label: 'Place of Residence', value: savedUser.placeOfResidence },
+    { section: 'Address & Citizenship', label: 'ZIP / Postal Code',  value: savedUser.zipCode },
+    { section: 'Address & Citizenship', label: 'Citizenship',        value: savedUser.citizenship },
+    // ── Contact (editable via Edit Profile) ──
+    { section: 'Contact', label: 'Phone Number', value: form.phoneNumber },
+    { section: 'Contact', label: 'Address',      value: form.address },
+    { section: 'Contact', label: 'City',         value: form.city },
+  ];
+
+  const sections = [...new Set(fields.map((f) => f.section))];
+
+  const sectionLabelStyle = {
+    fontWeight: 600,
+    margin: '1.25rem 0 0.6rem',
+    color: 'var(--text-secondary, #6b7280)',
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    borderBottom: '1px solid var(--border, #e5e7eb)',
+    paddingBottom: '0.35rem',
+    gridColumn: '1 / -1',
+  };
+
   return (
     <div className="card">
       {msg && <div className="alert alert-success">{msg}</div>}
 
       <div className="profile-info-grid">
-        <div className="info-item">
-          <span className="info-label">Phone Number</span>
-          <span className="info-value">{profile.phoneNumber || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">City</span>
-          <span className="info-value">{profile.city || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Address</span>
-          <span className="info-value">{profile.address || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Date of Birth</span>
-          <span className="info-value">{profile.dateOfBirth || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">National ID</span>
-          <span className="info-value">{profile.nationalId || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Gender</span>
-          <span className="info-value">{profile.gender || '—'}</span>
-        </div>
+        {sections.map((section) => (
+          <>
+            <p key={`section-${section}`} style={sectionLabelStyle}>{section}</p>
+            {fields
+              .filter((f) => f.section === section)
+              .map(({ label, value }) => (
+                <div key={label} className="info-item">
+                  <span className="info-label">{label}</span>
+                  <span className="info-value">{value || '—'}</span>
+                </div>
+              ))}
+          </>
+        ))}
       </div>
     </div>
   );
