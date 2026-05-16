@@ -136,7 +136,9 @@ export default function RegisterPage() {
     } catch (err) {
       const d = err.response?.data;
       setSubmitError(
-        typeof d === 'string' ? d : d?.message || d?.title || 'Registration failed. Please try again.'
+        typeof d === 'string'
+          ? d
+          : d?.message || d?.title || 'Registration failed. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -158,7 +160,6 @@ export default function RegisterPage() {
         {submitError && <div className="alert alert-error">{submitError}</div>}
 
         <form onSubmit={handleSubmit} className="auth-form" noValidate>
-
           {/* ── Account ── */}
           <SectionLabel>Account</SectionLabel>
 

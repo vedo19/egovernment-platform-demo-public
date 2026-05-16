@@ -97,9 +97,7 @@ export default function CitizenDashboard() {
       return (
         <div className="section-header">
           <div>
-            <h2>
-              {tabMode === 'editing' ? 'Edit Profile' : 'View Profile'}
-            </h2>
+            <h2>{tabMode === 'editing' ? 'Edit Profile' : 'View Profile'}</h2>
             <p className="subtitle">Manage your personal information and contact details.</p>
           </div>
           {tabMode !== 'editing' && (
@@ -300,10 +298,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
       setError(
         typeof d === 'string'
           ? d
-          : d?.message ||
-              d?.title ||
-              JSON.stringify(d?.errors || d) ||
-              'Failed to save profile'
+          : d?.message || d?.title || JSON.stringify(d?.errors || d) || 'Failed to save profile'
       );
     }
   };
@@ -474,11 +469,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
               Save Profile
             </button>
 
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => setMode('list')}
-            >
+            <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
               Cancel
             </button>
           </div>
@@ -489,23 +480,31 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
 
   const fields = [
     // ── Account ──
-    { section: 'Account', label: 'Full Name',          value: savedUser.fullName },
-    { section: 'Account', label: 'Email',              value: savedUser.email },
+    { section: 'Account', label: 'Full Name', value: savedUser.fullName },
+    { section: 'Account', label: 'Email', value: savedUser.email },
     // ── Personal Information ──
-    { section: 'Personal Information', label: 'First Name',    value: savedUser.name },
-    { section: 'Personal Information', label: 'Surname',       value: savedUser.surname },
+    { section: 'Personal Information', label: 'First Name', value: savedUser.name },
+    { section: 'Personal Information', label: 'Surname', value: savedUser.surname },
     { section: 'Personal Information', label: 'JMB (National ID)', value: savedUser.jmb },
-    { section: 'Personal Information', label: 'Gender',        value: savedUser.gender || form.gender },
-    { section: 'Personal Information', label: 'Date of Birth', value: savedUser.dateOfBirth || form.dateOfBirth },
+    { section: 'Personal Information', label: 'Gender', value: savedUser.gender || form.gender },
+    {
+      section: 'Personal Information',
+      label: 'Date of Birth',
+      value: savedUser.dateOfBirth || form.dateOfBirth,
+    },
     { section: 'Personal Information', label: 'Place of Birth', value: savedUser.placeOfBirth },
     // ── Address & Citizenship ──
-    { section: 'Address & Citizenship', label: 'Place of Residence', value: savedUser.placeOfResidence },
-    { section: 'Address & Citizenship', label: 'ZIP / Postal Code',  value: savedUser.zipCode },
-    { section: 'Address & Citizenship', label: 'Citizenship',        value: savedUser.citizenship },
+    {
+      section: 'Address & Citizenship',
+      label: 'Place of Residence',
+      value: savedUser.placeOfResidence,
+    },
+    { section: 'Address & Citizenship', label: 'ZIP / Postal Code', value: savedUser.zipCode },
+    { section: 'Address & Citizenship', label: 'Citizenship', value: savedUser.citizenship },
     // ── Contact (editable via Edit Profile) ──
     { section: 'Contact', label: 'Phone Number', value: form.phoneNumber },
-    { section: 'Contact', label: 'Address',      value: form.address },
-    { section: 'Contact', label: 'City',         value: form.city },
+    { section: 'Contact', label: 'Address', value: form.address },
+    { section: 'Contact', label: 'City', value: form.city },
   ];
 
   const sections = [...new Set(fields.map((f) => f.section))];
@@ -529,7 +528,9 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
       <div className="profile-info-grid">
         {sections.map((section) => (
           <>
-            <p key={`section-${section}`} style={sectionLabelStyle}>{section}</p>
+            <p key={`section-${section}`} style={sectionLabelStyle}>
+              {section}
+            </p>
             {fields
               .filter((f) => f.section === section)
               .map(({ label, value }) => (
