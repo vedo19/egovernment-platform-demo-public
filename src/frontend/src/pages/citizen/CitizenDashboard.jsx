@@ -273,7 +273,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
         gender: savedUser.gender || '',
       });
     }
-  }, [profile]);
+  }, [profile, savedUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
