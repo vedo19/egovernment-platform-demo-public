@@ -1,4 +1,5 @@
 using System.Text;
+using Prometheus;
 using CitizenService.Data;
 using CitizenService.Middleware;
 using CitizenService.Services;
@@ -92,11 +93,13 @@ using (var scope = app.Services.CreateScope())
 
 // ---------- Middleware Pipeline ----------
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseHttpMetrics();
 app.UseCors("AllowFrontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapMetrics();
 app.MapHealthChecks("/healthz");
 
 app.Run();

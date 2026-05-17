@@ -1,29 +1,41 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { serviceRequestApi, documentApi } from '../api/services';
-import ProgressBar from '../components/ProgressBar';
+import { useAuth } from '../../context/AuthContext';
+import { serviceRequestApi, documentApi } from '../../api/services';
+import ProgressBar from '../../components/ProgressBar';
+import AppBadge from '../../components/AppBadge';
+import DataTable from '../../components/DataTable';
+import { DOCUMENT_STATUS, SERVICE_REQUEST_STATUS, isTerminalStatus } from '../../domain/statuses';
+import { formatDate } from '../../utils/date';
+import { getStatusType } from '../../utils/status';
+import { useSearchParams } from 'react-router-dom';
+
 const PAGE_SIZE = 8;
 
 export default function OfficerDashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState('requests');
+  const [searchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'overview';
   const [requestCount, setRequestCount] = useState(0);
   const [documentCount, setDocumentCount] = useState(0);
   const [activeCount, setActiveCount] = useState(0);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setSearch('');
+  }, [tab]);
 
   const loadSummary = async () => {
+    setSummaryLoading(true);
     try {
       const [requestsRes, documentsRes] = await Promise.all([
         serviceRequestApi.getMyAssignments(),
         documentApi.getMyAssignments(),
       ]);
 
-      const requests = (requestsRes.data || []).filter(
-        (r) => r.status !== 'Approved' && r.status !== 'Rejected'
-      );
-      const documents = (documentsRes.data || []).filter(
-        (d) => d.status !== 'Approved' && d.status !== 'Rejected'
-      );
+      const requests = (requestsRes.data || []).filter((r) => !isTerminalStatus(r.status));
+      const documents = (documentsRes.data || []).filter((d) => !isTerminalStatus(d.status));
 
       setRequestCount(requests.length);
       setDocumentCount(documents.length);
@@ -32,6 +44,8 @@ export default function OfficerDashboard() {
       setRequestCount(0);
       setDocumentCount(0);
       setActiveCount(0);
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -39,63 +53,119 @@ export default function OfficerDashboard() {
     loadSummary();
   }, []);
 
+  const renderHeader = () => {
+    if (tab === 'overview') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Service Operations</h2>
+            <p className="subtitle">
+              Process assigned requests, verify documentation, and maintain service standards.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'requests') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Assigned Service Requests</h2>
+            <p className="subtitle">
+              Review active requests assigned to you and take action when needed.
+            </p>
+          </div>
+          <div className="header-actions">
+            <input
+              className="search-input"
+              placeholder="Search requests..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (tab === 'documents') {
+      return (
+        <div className="section-header">
+          <div>
+            <h2>Assigned Documents</h2>
+            <p className="subtitle">
+              Process active document requests and update their final outcome.
+            </p>
+          </div>
+          <div className="header-actions">
+            <input
+              className="search-input"
+              placeholder="Search documents..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
   return (
     <div className="dashboard-page officer-dashboard">
-      <div className="page-hero">
-        <div>
-          <h1>Officer Dashboard</h1>
-          <p className="subtitle">
-            Welcome, {user?.fullName}. Review assigned requests and process document tasks.
-          </p>
-        </div>
-      </div>
+      <div className="page-hero">{renderHeader()}</div>
 
-      <div className="stats-grid">
-        <div className="card stat-card">
-          <span className="stat-label">Assigned Requests </span>
-          <strong className="stat-value">{requestCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Assigned Documents </span>
-          <strong className="stat-value">{documentCount}</strong>
-        </div>
-        <div className="card stat-card">
-          <span className="stat-label">Active Tasks </span>
-          <strong className="stat-value">{activeCount}</strong>
-        </div>
-      </div>
+      <div className="dashboard-content">
+        {tab === 'overview' && (
+          <div className="stats-grid">
+            <div className="card stat-card">
+              <span className="stat-label">Assigned Requests </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{requestCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Assigned Documents </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{documentCount}</strong>
+              )}
+            </div>
+            <div className="card stat-card">
+              <span className="stat-label">Active Tasks </span>
+              {summaryLoading ? (
+                <div className="skeleton" style={{ height: '2.25rem' }}></div>
+              ) : (
+                <strong className="stat-value">{activeCount}</strong>
+              )}
+            </div>
+          </div>
+        )}
 
-      <div className="tabs">
-        <button
-          className={tab === 'requests' ? 'tab active' : 'tab'}
-          onClick={() => setTab('requests')}
-        >
-          My Requests
-        </button>
-        <button
-          className={tab === 'documents' ? 'tab active' : 'tab'}
-          onClick={() => setTab('documents')}
-        >
-          My Documents
-        </button>
-      </div>
-
-      <div className="dashboard-section">
-        {tab === 'requests' && <OfficerRequestsTab onRefreshSummary={loadSummary} />}
-        {tab === 'documents' && <OfficerDocumentsTab onRefreshSummary={loadSummary} />}
+        <div className="dashboard-section">
+          {tab === 'requests' && (
+            <OfficerRequestsTab onRefreshSummary={loadSummary} search={search} user={user} />
+          )}
+          {tab === 'documents' && (
+            <OfficerDocumentsTab onRefreshSummary={loadSummary} search={search} user={user} />
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function OfficerRequestsTab({ onRefreshSummary }) {
+function OfficerRequestsTab({ onRefreshSummary, search, user }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
   const [fileBusy, setFileBusy] = useState(false);
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -106,14 +176,17 @@ function OfficerRequestsTab({ onRefreshSummary }) {
     setLoading(true);
     try {
       const { data } = await serviceRequestApi.getAssignedToMe();
-      // Only show actionable items — hide already resolved/rejected
-      setRequests(data.filter((r) => r.status !== 'Approved' && r.status !== 'Rejected'));
+      setRequests((data || []).filter((r) => !isTerminalStatus(r.status)));
     } catch {
       /* empty */
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const handleAction = async (request, action) => {
     if ((action === 'reject' || action === 'reject-documents') && !notes.trim()) {
@@ -130,7 +203,9 @@ function OfficerRequestsTab({ onRefreshSummary }) {
 
     try {
       if (action === 'start-review') {
-        await serviceRequestApi.updateStatus(request.id, { status: 'UnderReview' });
+        await serviceRequestApi.updateStatus(request.id, {
+          status: SERVICE_REQUEST_STATUS.UNDER_REVIEW,
+        });
       } else if (action === 'approve') {
         await serviceRequestApi.approve(request.id);
       } else if (action === 'request-documents') {
@@ -144,13 +219,10 @@ function OfficerRequestsTab({ onRefreshSummary }) {
       await load();
       onRefreshSummary?.();
 
-      // After reload, find the updated request and refresh selected
-      // so buttons re-render with new status without closing the detail view
       if (action === 'start-review') {
         const { data } = await serviceRequestApi.getById(request.id);
         setSelected(data);
       } else {
-        // For terminal or transition actions, go back to list
         setSelected(null);
         setNotes('');
       }
@@ -198,14 +270,50 @@ function OfficerRequestsTab({ onRefreshSummary }) {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const columns = [
+    { header: 'Type', key: 'type', className: 'col-type' },
+    { header: 'Title', key: 'title', className: 'col-expand desc-cell' },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (r) => <AppBadge type={getStatusType(r.status)}>{r.status}</AppBadge>,
+    },
+    {
+      header: 'Assign Officer',
+      key: 'assignment',
+      className: 'col-expand',
+      render: () => user?.fullName || '—',
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (r) => <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />,
+    },
+    {
+      header: 'Created',
+      key: 'createdAt',
+      className: 'col-date',
+      render: (r) => formatDate(r.createdAt),
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      className: 'col-action',
+      render: (r) => (
+        <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>
+          Review
+        </button>
+      ),
+    },
+  ];
+
   if (selected) {
     return (
       <div className="card">
-        <div className="section-header">
-          <h2>Request Details</h2>
-        </div>
-
         {error && <div className="alert alert-error">{error}</div>}
+
         <div className="detail-grid">
           <div>
             <strong>Type:</strong> {selected.type}
@@ -214,14 +322,18 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <strong>Title:</strong> {selected.title}
           </div>
           <div>
-            <strong>Status:</strong> {selected.status}
+            <strong>Status:</strong>{' '}
+            <AppBadge type={getStatusType(selected.status)}>{selected.status}</AppBadge>
+          </div>
+          <div>
+            <strong>Assign Officer:</strong> {user?.fullName || '—'}
           </div>
           <div style={{ gridColumn: '1 / span 2' }}>
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
           <div>
-            <strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}
+            <strong>Created:</strong> {formatDate(selected.createdAt)}
           </div>
           <div>
             <strong>Citizen ID:</strong>{' '}
@@ -240,6 +352,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             <p>{selected.adminNotes}</p>
           </div>
         )}
+
         {selected.linkedDocumentId && (
           <div className="btn-group">
             <button
@@ -258,6 +371,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
             </button>
           </div>
         )}
+
         <div className="form-group" style={{ marginTop: '1rem' }}>
           <label>Notes / Rejection Reason</label>
           <textarea
@@ -269,13 +383,14 @@ function OfficerRequestsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          {selected.status === 'UnderReview' && (
+          {selected.status === SERVICE_REQUEST_STATUS.UNDER_REVIEW && (
             <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>
               Approve
             </button>
           )}
+
           {selected.type === 'Permit' &&
-            selected.status === 'UnderReview' &&
+            selected.status === SERVICE_REQUEST_STATUS.UNDER_REVIEW &&
             selected.linkedDocumentId && (
               <button
                 className="btn btn-primary"
@@ -284,20 +399,24 @@ function OfficerRequestsTab({ onRefreshSummary }) {
                 Reject Documents
               </button>
             )}
-          {selected.status === 'UnderReview' && (
+
+          {selected.status === SERVICE_REQUEST_STATUS.UNDER_REVIEW && (
             <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>
               Reject
             </button>
           )}
-          {selected.type === 'Permit' && selected.status === 'OfficerAssigned' && (
-            <button
-              className="btn btn-primary"
-              onClick={() => handleAction(selected, 'request-documents')}
-            >
-              Request Documents
-            </button>
-          )}
-          {selected.status === 'OfficerAssigned' && (
+
+          {selected.type === 'Permit' &&
+            selected.status === SERVICE_REQUEST_STATUS.OFFICER_ASSIGNED && (
+              <button
+                className="btn btn-primary"
+                onClick={() => handleAction(selected, 'request-documents')}
+              >
+                Request Documents
+              </button>
+            )}
+
+          {selected.status === SERVICE_REQUEST_STATUS.OFFICER_ASSIGNED && (
             <button
               className="btn btn-outline"
               onClick={() => handleAction(selected, 'start-review')}
@@ -305,6 +424,7 @@ function OfficerRequestsTab({ onRefreshSummary }) {
               Start Review
             </button>
           )}
+
           <button
             className="btn btn-outline"
             onClick={() => {
@@ -322,91 +442,36 @@ function OfficerRequestsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>Assigned Service Requests</h2>
-          <p className="subtitle">
-            Review active requests assigned to you and take action when needed.
-          </p>
-        </div>
-        <input
-          className="search-input"
-          placeholder="Search requests..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching requests.' : 'No pending requests assigned to you.'}
+      />
 
-      {loading ? (
-        <p className="loading-text">Loading requests...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">
-            {search ? 'No matching requests.' : 'No pending requests assigned to you.'}
-          </p>
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
+          </button>
         </div>
-      ) : (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Created</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.type}</td>
-                  <td className="desc-cell">{r.title}</td>
-                  <td>{r.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={r.progressPercentage} color={r.progressColor} />
-                  </td>
-                  <td>{r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
-                  <td>
-                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(r)}>
-                      Review
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>
-                Page {safePage} of {totalPages}
-              </span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
 }
 
-function OfficerDocumentsTab({ onRefreshSummary }) {
+function OfficerDocumentsTab({ onRefreshSummary, search, user }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -419,14 +484,17 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
     setLoading(true);
     try {
       const { data } = await documentApi.getAssignedToMe();
-      // Only show actionable items — hide already completed/rejected
-      setDocuments(data.filter((d) => d.status !== 'Approved' && d.status !== 'Rejected'));
+      setDocuments((data || []).filter((d) => !isTerminalStatus(d.status)));
     } catch {
       /* empty */
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [search]);
 
   const handleAction = async (document, action) => {
     if (action === 'reject' && !reason.trim()) {
@@ -444,6 +512,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
       } else if (action === 'reject') {
         await documentApi.reject(document.id, reason);
       }
+
       setSelected(null);
       setReason('');
       closePreview();
@@ -506,11 +575,55 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  const columns = [
+    {
+      header: 'Type',
+      key: 'documentType',
+      className: 'col-type',
+      render: (d) => d.documentType.replace(/([A-Z])/g, ' $1').trim(),
+    },
+    { header: 'Title', key: 'title', className: 'col-expand desc-cell' },
+    {
+      header: 'Status',
+      key: 'status',
+      className: 'col-status',
+      render: (d) => <AppBadge type={getStatusType(d.status)}>{d.status}</AppBadge>,
+    },
+    {
+      header: 'Assign Officer',
+      key: 'assignment',
+      className: 'col-expand',
+      render: () => user?.fullName || '—',
+    },
+    {
+      header: 'Progress',
+      key: 'progress',
+      className: 'col-progress',
+      render: (d) => <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />,
+    },
+    {
+      header: 'Created',
+      key: 'createdAt',
+      className: 'col-date',
+      render: (d) => formatDate(d.createdAt),
+    },
+    {
+      header: 'Action',
+      key: 'action',
+      className: 'col-action',
+      render: (d) => (
+        <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>
+          Review
+        </button>
+      ),
+    },
+  ];
+
   if (selected) {
     return (
       <div className="card">
-        <h2>Document Details</h2>
         {error && <div className="alert alert-error">{error}</div>}
+
         <div className="detail-grid">
           <div>
             <strong>Type:</strong> {selected.documentType.replace(/([A-Z])/g, ' $1').trim()}
@@ -519,21 +632,22 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
             <strong>Title:</strong> {selected.title}
           </div>
           <div>
-            <strong>Status:</strong> {selected.status}
+            <strong>Status:</strong>{' '}
+            <AppBadge type={getStatusType(selected.status)}>{selected.status}</AppBadge>
+          </div>
+          <div>
+            <strong>Assign Officer:</strong> {user?.fullName || '—'}
           </div>
           <div style={{ gridColumn: '1 / span 2' }}>
             <strong>Progress:</strong>{' '}
             <ProgressBar percentage={selected.progressPercentage} color={selected.progressColor} />
           </div>
           <div>
-            <strong>Created:</strong> {new Date(selected.createdAt).toLocaleDateString()}
+            <strong>Created:</strong> {formatDate(selected.createdAt)}
           </div>
           <div>
             <strong>Citizen ID:</strong>{' '}
             <span className="id-cell-inline">{selected.citizenUserId}</span>
-          </div>
-          <div>
-            <strong>Reference #:</strong> {selected.referenceNumber || '—'}
           </div>
         </div>
 
@@ -590,7 +704,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
         </div>
 
         <div className="btn-group">
-          {selected.status === 'Submitted' && (
+          {selected.status === DOCUMENT_STATUS.SUBMITTED && (
             <button
               className="btn btn-primary"
               onClick={() => handleAction(selected, 'start-review')}
@@ -598,16 +712,19 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
               Start Review
             </button>
           )}
-          {selected.status === 'UnderReview' && (
+
+          {selected.status === DOCUMENT_STATUS.UNDER_REVIEW && (
             <button className="btn btn-success" onClick={() => handleAction(selected, 'approve')}>
               Approve
             </button>
           )}
-          {selected.status === 'UnderReview' && (
+
+          {selected.status === DOCUMENT_STATUS.UNDER_REVIEW && (
             <button className="btn btn-danger" onClick={() => handleAction(selected, 'reject')}>
               Reject
             </button>
           )}
+
           <button
             className="btn btn-outline"
             onClick={() => {
@@ -619,6 +736,7 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
           >
             Back
           </button>
+
           <button
             className="btn btn-outline"
             onClick={() => handlePreview(selected.id)}
@@ -633,79 +751,25 @@ function OfficerDocumentsTab({ onRefreshSummary }) {
 
   return (
     <div className="card">
-      <div className="section-header">
-        <div>
-          <h2>Assigned Documents</h2>
-          <p className="subtitle">
-            Process active document requests and update their final outcome.
-          </p>
-        </div>
-        <input
-          className="search-input"
-          placeholder="Search documents..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
+      <DataTable
+        columns={columns}
+        data={paged}
+        loading={loading}
+        emptyMessage={search ? 'No matching documents.' : 'No pending documents assigned to you.'}
+      />
 
-      {loading ? (
-        <p className="loading-text">Loading documents...</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state-card">
-          <p className="empty">
-            {search ? 'No matching documents.' : 'No pending documents assigned to you.'}
-          </p>
+      {totalPages > 1 && (
+        <div className="pagination">
+          <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
+            Previous
+          </button>
+          <span>
+            Page {safePage} of {totalPages}
+          </span>
+          <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
+            Next
+          </button>
         </div>
-      ) : (
-        <>
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Type</th>
-                <th>Title</th>
-                <th>Status</th>
-                <th>Progress</th>
-                <th>Created</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((d) => (
-                <tr key={d.id}>
-                  <td>{d.documentType.replace(/([A-Z])/g, ' $1').trim()}</td>
-                  <td className="desc-cell">{d.title}</td>
-                  <td>{d.status}</td>
-                  <td style={{ minWidth: '180px' }}>
-                    <ProgressBar percentage={d.progressPercentage} color={d.progressColor} />
-                  </td>
-                  <td>{d.createdAt ? new Date(d.createdAt).toLocaleDateString() : '—'}</td>
-                  <td>
-                    <button className="btn btn-sm btn-primary" onClick={() => setSelected(d)}>
-                      Review
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totalPages > 1 && (
-            <div className="pagination">
-              <button disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>
-                Previous
-              </button>
-              <span>
-                Page {safePage} of {totalPages}
-              </span>
-              <button disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)}>
-                Next
-              </button>
-            </div>
-          )}
-        </>
       )}
     </div>
   );
