@@ -13,6 +13,12 @@ public class CitizenProfile
     [Required, MaxLength(100)]
     public string FullName { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
     [Required, MaxLength(200)]
     public string Email { get; set; } = string.Empty;
 
@@ -32,6 +38,18 @@ public class CitizenProfile
 
     [MaxLength(50)]
     public string Gender { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string PlaceOfBirth { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string PlaceOfResidence { get; set; } = string.Empty;
+
+    [MaxLength(20)]
+    public string ZipCode { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string Citizenship { get; set; } = string.Empty;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

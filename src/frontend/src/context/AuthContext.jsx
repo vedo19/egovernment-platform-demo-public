@@ -1,7 +1,7 @@
 // AuthContext.jsx
 
 import { createContext, useContext, useState } from 'react';
-import { authApi } from '../api/services';
+import { authApi, citizenApi } from '../api/services';
 
 const AuthContext = createContext(null);
 
@@ -61,6 +61,28 @@ export function AuthProvider({ children }) {
     });
 
     localStorage.setItem('token', data.token);
+
+    try {
+      await citizenApi.createProfile({
+        firstName: name,
+        lastName: surname,
+        phoneNumber: '',
+        nationalId: jmb,
+        dateOfBirth,
+        address: placeOfResidence,
+        city: placeOfResidence,
+        gender,
+        placeOfBirth,
+        placeOfResidence,
+        zipCode,
+        citizenship,
+      });
+    } catch (err) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      throw err;
+    }
 
     const userData = {
       userId: data.userId,

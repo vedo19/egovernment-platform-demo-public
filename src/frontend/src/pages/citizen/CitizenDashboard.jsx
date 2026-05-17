@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
 import AppSelect from '../../components/AppSelect';
@@ -49,12 +49,21 @@ export default function CitizenDashboard() {
       const [requestsRes, documentsRes, profileRes] = await Promise.all([
         serviceRequestApi.getMyRequests(),
         documentApi.getMyDocuments(),
-        citizenApi.getProfile().catch(() => ({ data: null })),
+        citizenApi.getProfile().catch((err) => {
+          if (err.response?.status === 404) {
+            return { data: null };
+          }
+
+          throw err;
+        }),
       ]);
 
       const requests = requestsRes.data || [];
       const documents = documentsRes.data || [];
       setProfile(profileRes.data);
+      if (!profileRes.data && searchParams.get('tab') === 'profile') {
+        setTabMode('editing');
+      }
       setProfileLoading(false);
 
       setRequestCount(requests.length);
@@ -237,15 +246,21 @@ export default function CitizenDashboard() {
 }
 
 function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
-  const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const savedUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
 
   const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
     phoneNumber: '',
     address: '',
     dateOfBirth: '',
     nationalId: '',
     city: '',
     gender: '',
+    placeOfBirth: '',
+    placeOfResidence: '',
+    zipCode: '',
+    citizenship: '',
   });
 
   const [error, setError] = useState('');
@@ -256,21 +271,33 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
   useEffect(() => {
     if (profile) {
       setForm({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
         phoneNumber: profile.phoneNumber || '',
         address: profile.address || '',
         dateOfBirth: profile.dateOfBirth || '',
         nationalId: profile.nationalId || '',
         city: profile.city || '',
         gender: profile.gender || '',
+        placeOfBirth: profile.placeOfBirth || '',
+        placeOfResidence: profile.placeOfResidence || '',
+        zipCode: profile.zipCode || '',
+        citizenship: profile.citizenship || '',
       });
     } else {
       setForm({
+        firstName: savedUser.name || '',
+        lastName: savedUser.surname || '',
         phoneNumber: '',
         address: savedUser.placeOfResidence || '',
         dateOfBirth: savedUser.dateOfBirth || '',
         nationalId: savedUser.jmb || '',
         city: savedUser.placeOfResidence || '',
         gender: savedUser.gender || '',
+        placeOfBirth: savedUser.placeOfBirth || '',
+        placeOfResidence: savedUser.placeOfResidence || '',
+        zipCode: savedUser.zipCode || '',
+        citizenship: savedUser.citizenship || '',
       });
     }
   }, [profile, savedUser]);
@@ -371,6 +398,36 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
         <form onSubmit={handleSubmit}>
           <div className="detail-grid">
             <div className="form-group">
+              <label>First Name</label>
+
+              <input
+                value={form.firstName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    firstName: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Surname</label>
+
+              <input
+                value={form.lastName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    lastName: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
               <label>Phone Number</label>
 
               <input
@@ -447,6 +504,66 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
             </div>
 
             <div className="form-group">
+              <label>Place of Birth</label>
+
+              <input
+                value={form.placeOfBirth}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    placeOfBirth: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Place of Residence</label>
+
+              <input
+                value={form.placeOfResidence}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    placeOfResidence: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>ZIP / Postal Code</label>
+
+              <input
+                value={form.zipCode}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    zipCode: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Citizenship</label>
+
+              <input
+                value={form.citizenship}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    citizenship: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
               <label>Gender</label>
 
               <AppSelect
@@ -480,27 +597,27 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
 
   const fields = [
     // ── Account ──
-    { section: 'Account', label: 'Full Name', value: savedUser.fullName },
-    { section: 'Account', label: 'Email', value: savedUser.email },
+    { section: 'Account', label: 'Full Name', value: profile?.fullName || savedUser.fullName },
+    { section: 'Account', label: 'Email', value: profile?.email || savedUser.email },
     // ── Personal Information ──
-    { section: 'Personal Information', label: 'First Name', value: savedUser.name },
-    { section: 'Personal Information', label: 'Surname', value: savedUser.surname },
-    { section: 'Personal Information', label: 'JMB (National ID)', value: savedUser.jmb },
-    { section: 'Personal Information', label: 'Gender', value: savedUser.gender || form.gender },
+    { section: 'Personal Information', label: 'First Name', value: form.firstName },
+    { section: 'Personal Information', label: 'Surname', value: form.lastName },
+    { section: 'Personal Information', label: 'JMB (National ID)', value: form.nationalId },
+    { section: 'Personal Information', label: 'Gender', value: form.gender },
     {
       section: 'Personal Information',
       label: 'Date of Birth',
-      value: savedUser.dateOfBirth || form.dateOfBirth,
+      value: form.dateOfBirth,
     },
-    { section: 'Personal Information', label: 'Place of Birth', value: savedUser.placeOfBirth },
+    { section: 'Personal Information', label: 'Place of Birth', value: form.placeOfBirth },
     // ── Address & Citizenship ──
     {
       section: 'Address & Citizenship',
       label: 'Place of Residence',
-      value: savedUser.placeOfResidence,
+      value: form.placeOfResidence,
     },
-    { section: 'Address & Citizenship', label: 'ZIP / Postal Code', value: savedUser.zipCode },
-    { section: 'Address & Citizenship', label: 'Citizenship', value: savedUser.citizenship },
+    { section: 'Address & Citizenship', label: 'ZIP / Postal Code', value: form.zipCode },
+    { section: 'Address & Citizenship', label: 'Citizenship', value: form.citizenship },
     // ── Contact (editable via Edit Profile) ──
     { section: 'Contact', label: 'Phone Number', value: form.phoneNumber },
     { section: 'Contact', label: 'Address', value: form.address },
@@ -522,7 +639,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
   };
 
   return (
-    <div className="card">
+    <div className="card profile-card">
       {msg && <div className="alert alert-success">{msg}</div>}
 
       <div className="profile-info-grid">
