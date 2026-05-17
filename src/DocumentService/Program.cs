@@ -3,6 +3,7 @@ using Prometheus;
 using DocumentService.Data;
 using DocumentService.Middleware;
 using DocumentService.Services;
+using DocumentService.Services.Events;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -80,6 +81,7 @@ builder.Services.AddHttpClient("CitizenService", client =>
 });
 builder.Services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 builder.Services.AddScoped<IDocumentService, DocumentServiceImpl>();
+builder.Services.AddSingleton<IEventBus, RabbitMqEventBus>();
 builder.Services.AddHostedService<ServiceRequestCreatedConsumer>();
 builder.Services.AddHealthChecks();
 

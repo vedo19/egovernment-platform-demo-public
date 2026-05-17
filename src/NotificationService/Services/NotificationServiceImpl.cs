@@ -115,22 +115,19 @@ public class NotificationServiceImpl : INotificationService
 
         if (recipientForEmail is not null && !string.IsNullOrWhiteSpace(recipientForEmail.Email))
         {
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    var subject = $"[E-Government] {title}";
-                    var body = BuildEmailBody(recipientForEmail.FullName, title, message, link);
-                    await _email.SendAsync(recipientForEmail.Email, recipientForEmail.FullName, subject, body);
+                var subject = $"[E-Government] {title}";
+                var body = BuildEmailBody(recipientForEmail.FullName, title, message, link);
+                await _email.SendAsync(recipientForEmail.Email, recipientForEmail.FullName, subject, body);
 
-                    notification.EmailSent = true;
-                    await _db.SaveChangesAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send email notification {Id} to {Email}", notification.Id, recipientForEmail.Email);
-                }
-            }, CancellationToken.None);
+                notification.EmailSent = true;
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email notification {Id} to {Email}", notification.Id, recipientForEmail.Email);
+            }
         }
     }
 

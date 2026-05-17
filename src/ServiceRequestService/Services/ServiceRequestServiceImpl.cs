@@ -39,7 +39,7 @@ public class ServiceRequestServiceImpl : IServiceRequestService
 
         _context.ServiceRequests.Add(serviceRequest);
         await _context.SaveChangesAsync();
-        await _eventPublisher.PublishCreatedAsync(serviceRequest);
+        await _eventPublisher.PublishSubmittedAsync(serviceRequest);
 
         return MapToDto(serviceRequest);
     }
@@ -96,7 +96,13 @@ public class ServiceRequestServiceImpl : IServiceRequestService
         var sr = await _context.ServiceRequests.FindAsync(id)
             ?? throw new KeyNotFoundException("Service request not found.");
 
-        return await TransitionToAsync(sr, normalizedTarget, officerId, request.AdminNotes, assignWhenMissing: true);
+        var result = await TransitionToAsync(sr, normalizedTarget, officerId, request.AdminNotes, assignWhenMissing: true);
+        if (normalizedTarget == "Approved")
+            await _eventPublisher.PublishApprovedAsync(sr);
+        else if (normalizedTarget == "Rejected")
+            await _eventPublisher.PublishRejectedAsync(sr);
+
+        return result;
     }
 
     public async Task<ServiceRequestDto> AssignOfficerAsync(Guid id, Guid officerId)
@@ -113,6 +119,7 @@ public class ServiceRequestServiceImpl : IServiceRequestService
         sr.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+        await _eventPublisher.PublishAssignedAsync(sr);
 
         return MapToDto(sr);
     }
@@ -130,7 +137,9 @@ public class ServiceRequestServiceImpl : IServiceRequestService
         if (string.IsNullOrWhiteSpace(officerNote))
             throw new ArgumentException("Officer note is required when requesting documents.");
 
-        return await TransitionToAsync(sr, "AwaitingDocuments", actorId, officerNote);
+        var result = await TransitionToAsync(sr, "AwaitingDocuments", actorId, officerNote);
+        await _eventPublisher.PublishDocumentsRequestedAsync(sr);
+        return result;
     }
 
     public async Task<ServiceRequestDto> ApproveAsync(Guid id, Guid actorId, bool isAdmin)
@@ -140,7 +149,9 @@ public class ServiceRequestServiceImpl : IServiceRequestService
 
         EnsureOfficerAccess(sr, actorId, isAdmin);
 
-        return await TransitionToAsync(sr, "Approved", actorId);
+        var result = await TransitionToAsync(sr, "Approved", actorId);
+        await _eventPublisher.PublishApprovedAsync(sr);
+        return result;
     }
 
     public async Task<ServiceRequestDto> RejectDocumentsAsync(Guid id, Guid actorId, string reason, bool isAdmin)
@@ -162,7 +173,9 @@ public class ServiceRequestServiceImpl : IServiceRequestService
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Rejection reason is required.");
 
-        return await TransitionToAsync(sr, "DocumentsRejected", actorId, reason);
+        var result = await TransitionToAsync(sr, "DocumentsRejected", actorId, reason);
+        await _eventPublisher.PublishDocumentsRejectedAsync(sr);
+        return result;
     }
 
     public async Task<ServiceRequestDto> RejectAsync(Guid id, Guid actorId, string reason, bool isAdmin)
@@ -175,7 +188,9 @@ public class ServiceRequestServiceImpl : IServiceRequestService
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Rejection reason is required.");
 
-        return await TransitionToAsync(sr, "Rejected", actorId, reason);
+        var result = await TransitionToAsync(sr, "Rejected", actorId, reason);
+        await _eventPublisher.PublishRejectedAsync(sr);
+        return result;
     }
 
     public async Task<ServiceRequestDto> UploadDocumentAsync(Guid id, Guid citizenUserId, IFormFile file, string? authorizationHeader)

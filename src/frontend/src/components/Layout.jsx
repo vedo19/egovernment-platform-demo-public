@@ -1,4 +1,5 @@
 import { Outlet } from 'react-router-dom';
+import NotificationBell from './NotificationBell';
 import Sidebar from './Sidebar';
 
 export default function Layout() {
@@ -7,6 +8,9 @@ export default function Layout() {
       <Sidebar />
 
       <main className="main-content">
+        <div className="app-topbar">
+          <NotificationBell />
+        </div>
         <Outlet />
       </main>
     </div>

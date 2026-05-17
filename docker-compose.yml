@@ -38,6 +38,7 @@ services:
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
       Jwt__ExpiryMinutes: "60"
+      Internal__ApiKey: "${INTERNAL_API_KEY:-CHANGE_ME_INTERNAL_KEY}"
       Admin__Email: "${ADMIN_EMAIL:-change-me-admin@example.com}"
       Admin__Password: "${ADMIN_PASSWORD:-CHANGE_ME_STRONG_ADMIN_PASSWORD}"
       Admin__FullName: "${ADMIN_FULLNAME:-System Administrator}"
@@ -160,6 +161,13 @@ services:
       retries: 10
 
   # ─────────────────────── Service Request Service ─────────────────────────
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    container_name: mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
   service_request_service:
     build:
       context: .
@@ -237,6 +245,47 @@ services:
         condition: service_healthy
 
   # ══════════════════════════════ API Gateway ══════════════════════════════
+  notification_service:
+    build:
+      context: .
+      dockerfile: src/NotificationService/Dockerfile
+    container_name: notification_service
+    ports:
+      - "5005:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=notification_db;Port=5432;Database=notification_db;Username=postgres;Password=${POSTGRES_PASSWORD:-CHANGE_ME_POSTGRES_PASSWORD}"
+      NotificationDb__Host: "${NotificationDb__Host:-notification_db}"
+      NotificationDb__Port: "${NotificationDb__Port:-5432}"
+      NotificationDb__Database: "${NotificationDb__Database:-notification_db}"
+      NotificationDb__Username: "${NotificationDb__Username:-postgres}"
+      NotificationDb__Password: "${NotificationDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
+      NotificationDb__SslMode: "${NotificationDb__SslMode:-Disable}"
+      RabbitMQ__Host: "${RabbitMQ__Host:-rabbitmq}"
+      RabbitMQ__Port: "${RabbitMQ__Port:-5672}"
+      RabbitMQ__Username: "${RABBITMQ_USER:-egov}"
+      RabbitMQ__Password: "${RABBITMQ_PASSWORD:-egov-rabbitmq-dev-secret}"
+      Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
+      Jwt__Issuer: "AuthService"
+      Jwt__Audience: "EGovernmentPlatform"
+      AuthService__BaseUrl: "http://auth_service:8080/"
+      Internal__ApiKey: "${INTERNAL_API_KEY:-CHANGE_ME_INTERNAL_KEY}"
+      Smtp__Host: "mailhog"
+      Smtp__Port: "1025"
+      Smtp__From: "noreply@egovernment.local"
+      Smtp__FromName: "E-Government Platform"
+      Smtp__UseStartTls: "false"
+      Platform__BaseUrl: "${PLATFORM_BASE_URL:-http://localhost:3000}"
+    depends_on:
+      notification_db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      auth_service:
+        condition: service_started
+      mailhog:
+        condition: service_started
+
   api_gateway:
     build:
       context: .
@@ -250,6 +299,7 @@ services:
       CitizenService__Url: "${CitizenService__Url:-http://citizen_service:8080}"
       ServiceRequestService__Url: "${ServiceRequestService__Url:-http://service_request_service:8080}"
       DocumentService__Url: "${DocumentService__Url:-http://document_service:8080}"
+      NotificationService__Url: "${NotificationService__Url:-http://notification_service:8080}"
       Cors__AllowedOrigins__0: "${Cors__AllowedOrigins__0:-http://localhost:3000}"
       Cors__AllowedOrigins__1: "${Cors__AllowedOrigins__1:-http://localhost:5173}"
     depends_on:
@@ -257,6 +307,7 @@ services:
       - citizen_service
       - service_request_service
       - document_service
+      - notification_service
 
   # ══════════════════════════════ Frontend ═════════════════════════════════
   frontend:

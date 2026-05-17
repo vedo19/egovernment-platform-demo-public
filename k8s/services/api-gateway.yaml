@@ -87,6 +87,42 @@ data:
           "DownstreamHostAndPorts": [
             { "Host": "document-service", "Port": 8080 }
           ]
+        },
+        {
+          "UpstreamPathTemplate": "/api/notifications/{everything}",
+          "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE"],
+          "DownstreamPathTemplate": "/api/notifications/{everything}",
+          "DownstreamScheme": "http",
+          "DownstreamHostAndPorts": [
+            { "Host": "notification-service", "Port": 8080 }
+          ]
+        },
+        {
+          "UpstreamPathTemplate": "/api/notifications",
+          "UpstreamHttpMethod": ["GET", "POST"],
+          "DownstreamPathTemplate": "/api/notifications",
+          "DownstreamScheme": "http",
+          "DownstreamHostAndPorts": [
+            { "Host": "notification-service", "Port": 8080 }
+          ]
+        },
+        {
+          "UpstreamPathTemplate": "/hubs/notifications/{everything}",
+          "UpstreamHttpMethod": ["GET", "POST"],
+          "DownstreamPathTemplate": "/hubs/notifications/{everything}",
+          "DownstreamScheme": "http",
+          "DownstreamHostAndPorts": [
+            { "Host": "notification-service", "Port": 8080 }
+          ]
+        },
+        {
+          "UpstreamPathTemplate": "/hubs/notifications",
+          "UpstreamHttpMethod": ["GET", "POST"],
+          "DownstreamPathTemplate": "/hubs/notifications",
+          "DownstreamScheme": "http",
+          "DownstreamHostAndPorts": [
+            { "Host": "notification-service", "Port": 8080 }
+          ]
         }
       ],
       "GlobalConfiguration": {

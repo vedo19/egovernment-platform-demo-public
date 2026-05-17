@@ -74,6 +74,7 @@ builder.Services.AddAuthorization();
 // ---------- Application Services ----------
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthService, AuthServiceImpl>();
+builder.Services.AddScoped<InternalApiKeyFilter>();
 builder.Services.AddHealthChecks();
 
 // ---------- Controllers ----------

@@ -7,7 +7,6 @@ namespace ServiceRequestService.Services;
 public sealed class RabbitMqServiceRequestEventPublisher : IServiceRequestEventPublisher
 {
     private const string ExchangeName = "egov.events";
-    private const string RoutingKey = "servicerequest.created";
 
     private readonly ILogger<RabbitMqServiceRequestEventPublisher> _logger;
     private readonly string _host;
@@ -24,7 +23,25 @@ public sealed class RabbitMqServiceRequestEventPublisher : IServiceRequestEventP
         _password = configuration["RabbitMQ:Password"] ?? "guest";
     }
 
-    public Task PublishCreatedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+    public Task PublishSubmittedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.submitted", serviceRequest, cancellationToken);
+
+    public Task PublishAssignedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.assigned", serviceRequest, cancellationToken);
+
+    public Task PublishDocumentsRequestedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.documents_requested", serviceRequest, cancellationToken);
+
+    public Task PublishDocumentsRejectedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.documents_rejected", serviceRequest, cancellationToken);
+
+    public Task PublishApprovedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.approved", serviceRequest, cancellationToken);
+
+    public Task PublishRejectedAsync(ServiceRequest serviceRequest, CancellationToken cancellationToken = default)
+        => PublishAsync("servicerequest.rejected", serviceRequest, cancellationToken);
+
+    private Task PublishAsync(string routingKey, ServiceRequest serviceRequest, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -36,15 +53,28 @@ public sealed class RabbitMqServiceRequestEventPublisher : IServiceRequestEventP
             Password = _password
         };
 
-        var evt = new ServiceRequestCreatedEvent(
-            serviceRequest.Id,
-            serviceRequest.CitizenUserId,
-            serviceRequest.Type,
-            serviceRequest.Title,
-            serviceRequest.Status,
-            serviceRequest.CreatedAt);
+        var envelope = new
+        {
+            eventType = routingKey,
+            occurredAt = DateTime.UtcNow,
+            payload = new
+            {
+                serviceRequestId = serviceRequest.Id,
+                citizenUserId = serviceRequest.CitizenUserId,
+                assignedOfficerId = serviceRequest.AssignedOfficerId,
+                type = serviceRequest.Type,
+                title = serviceRequest.Title,
+                status = serviceRequest.Status,
+                officerNote = serviceRequest.OfficerNote,
+                reason = serviceRequest.AdminNotes,
+                createdAtUtc = serviceRequest.CreatedAt
+            }
+        };
 
-        var payload = JsonSerializer.SerializeToUtf8Bytes(evt);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(envelope, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
 
         try
         {
@@ -64,14 +94,14 @@ public sealed class RabbitMqServiceRequestEventPublisher : IServiceRequestEventP
 
             channel.BasicPublish(
                 exchange: ExchangeName,
-                routingKey: RoutingKey,
+                routingKey: routingKey,
                 mandatory: false,
                 basicProperties: properties,
                 body: payload);
 
             _logger.LogInformation(
                 "Published RabbitMQ event {RoutingKey} for service request {ServiceRequestId}.",
-                RoutingKey,
+                routingKey,
                 serviceRequest.Id);
         }
         catch (Exception ex)
@@ -79,18 +109,10 @@ public sealed class RabbitMqServiceRequestEventPublisher : IServiceRequestEventP
             _logger.LogError(
                 ex,
                 "Failed to publish RabbitMQ event {RoutingKey} for service request {ServiceRequestId}.",
-                RoutingKey,
+                routingKey,
                 serviceRequest.Id);
         }
 
         return Task.CompletedTask;
     }
 }
-
-public sealed record ServiceRequestCreatedEvent(
-    Guid ServiceRequestId,
-    Guid CitizenUserId,
-    string Type,
-    string Title,
-    string Status,
-    DateTime CreatedAtUtc);

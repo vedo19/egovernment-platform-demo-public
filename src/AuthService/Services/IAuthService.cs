@@ -10,4 +10,5 @@ public interface IAuthService
     Task<UserDto?> GetUserByIdAsync(Guid id);
     Task<UserDto> UpdateUserRoleAsync(Guid userId, string newRole);
     Task<IEnumerable<UserDto>> GetAllUsersAsync();
+    Task<IEnumerable<UserDto>> GetUsersByRoleAsync(string role);
 }
