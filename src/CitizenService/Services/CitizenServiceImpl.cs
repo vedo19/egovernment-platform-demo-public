@@ -30,6 +30,8 @@ public class CitizenServiceImpl : ICitizenService
         {
             UserId = userId,
             FullName = fullName,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
             Email = email.ToLowerInvariant(),
             PhoneNumber = request.PhoneNumber,
             NationalId = request.NationalId,
@@ -37,6 +39,10 @@ public class CitizenServiceImpl : ICitizenService
             Address = request.Address,
             City = request.City,
             Gender = request.Gender,
+            PlaceOfBirth = request.PlaceOfBirth,
+            PlaceOfResidence = request.PlaceOfResidence,
+            ZipCode = request.ZipCode,
+            Citizenship = request.Citizenship,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -66,10 +72,27 @@ public class CitizenServiceImpl : ICitizenService
             .FirstOrDefaultAsync(c => c.UserId == userId)
             ?? throw new KeyNotFoundException("Citizen profile not found.");
 
+        if (!string.IsNullOrWhiteSpace(request.NationalId) && request.NationalId != profile.NationalId)
+        {
+            var nationalIdExists = await _context.CitizenProfiles
+                .AnyAsync(c => c.NationalId == request.NationalId && c.UserId != userId);
+            if (nationalIdExists)
+                throw new InvalidOperationException("A profile with this National ID already exists.");
+
+            profile.NationalId = request.NationalId;
+        }
+
+        if (request.DateOfBirth is not null) profile.DateOfBirth = request.DateOfBirth.Value;
         if (request.PhoneNumber is not null) profile.PhoneNumber = request.PhoneNumber;
+        if (request.FirstName is not null) profile.FirstName = request.FirstName;
+        if (request.LastName is not null) profile.LastName = request.LastName;
         if (request.Address is not null) profile.Address = request.Address;
         if (request.City is not null) profile.City = request.City;
         if (request.Gender is not null) profile.Gender = request.Gender;
+        if (request.PlaceOfBirth is not null) profile.PlaceOfBirth = request.PlaceOfBirth;
+        if (request.PlaceOfResidence is not null) profile.PlaceOfResidence = request.PlaceOfResidence;
+        if (request.ZipCode is not null) profile.ZipCode = request.ZipCode;
+        if (request.Citizenship is not null) profile.Citizenship = request.Citizenship;
 
         profile.UpdatedAt = DateTime.UtcNow;
 
@@ -90,6 +113,8 @@ public class CitizenServiceImpl : ICitizenService
         Id = profile.Id,
         UserId = profile.UserId,
         FullName = profile.FullName,
+        FirstName = profile.FirstName,
+        LastName = profile.LastName,
         Email = profile.Email,
         PhoneNumber = profile.PhoneNumber,
         NationalId = profile.NationalId,
@@ -97,6 +122,10 @@ public class CitizenServiceImpl : ICitizenService
         Address = profile.Address,
         City = profile.City,
         Gender = profile.Gender,
+        PlaceOfBirth = profile.PlaceOfBirth,
+        PlaceOfResidence = profile.PlaceOfResidence,
+        ZipCode = profile.ZipCode,
+        Citizenship = profile.Citizenship,
         CreatedAt = profile.CreatedAt,
         UpdatedAt = profile.UpdatedAt
     };

@@ -36,6 +36,7 @@ services:
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
       Jwt__ExpiryMinutes: "60"
+      AuthDb__ChannelBinding: "${AuthDb__ChannelBinding:-}"
       Admin__Email: "${ADMIN_EMAIL:-change-me-admin@example.com}"
       Admin__Password: "${ADMIN_PASSWORD:-CHANGE_ME_STRONG_ADMIN_PASSWORD}"
       Admin__FullName: "${ADMIN_FULLNAME:-System Administrator}"
