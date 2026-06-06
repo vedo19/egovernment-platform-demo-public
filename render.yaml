@@ -44,25 +44,17 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: CitizenDb__Host
-        fromDatabase:
-          name: citizen-db
-          property: host
+        sync: false
       - key: CitizenDb__Port
-        fromDatabase:
-          name: citizen-db
-          property: port
+        value: "5432"
       - key: CitizenDb__Database
-        fromDatabase:
-          name: citizen-db
-          property: database
+        sync: false
       - key: CitizenDb__Username
-        fromDatabase:
-          name: citizen-db
-          property: user
+        sync: false
       - key: CitizenDb__Password
-        fromDatabase:
-          name: citizen-db
-          property: password
+        sync: false
+      - key: CitizenDb__SslMode
+        value: Require
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
@@ -80,25 +72,17 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: RequestDb__Host
-        fromDatabase:
-          name: request-db
-          property: host
+        sync: false
       - key: RequestDb__Port
-        fromDatabase:
-          name: request-db
-          property: port
+        value: "5432"
       - key: RequestDb__Database
-        fromDatabase:
-          name: request-db
-          property: database
+        sync: false
       - key: RequestDb__Username
-        fromDatabase:
-          name: request-db
-          property: user
+        sync: false
       - key: RequestDb__Password
-        fromDatabase:
-          name: request-db
-          property: password
+        sync: false
+      - key: RequestDb__SslMode
+        value: Require
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
@@ -116,25 +100,17 @@ services:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: DocumentDb__Host
-        fromDatabase:
-          name: document-db
-          property: host
+        sync: false
       - key: DocumentDb__Port
-        fromDatabase:
-          name: document-db
-          property: port
+        value: "5432"
       - key: DocumentDb__Database
-        fromDatabase:
-          name: document-db
-          property: database
+        sync: false
       - key: DocumentDb__Username
-        fromDatabase:
-          name: document-db
-          property: user
+        sync: false
       - key: DocumentDb__Password
-        fromDatabase:
-          name: document-db
-          property: password
+        sync: false
+      - key: DocumentDb__SslMode
+        value: Require
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
@@ -171,7 +147,4 @@ services:
       - key: VITE_API_URL
         sync: false
 
-databases:
-  - name: citizen-db
-  - name: request-db
-  - name: document-db
+# All databases are now managed on NeonDB
