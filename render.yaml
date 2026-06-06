@@ -8,26 +8,19 @@ services:
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
+      # NeonDB connection — set these in the Render dashboard
       - key: AuthDb__Host
-        fromDatabase:
-          name: auth-db
-          property: host
+        sync: false
       - key: AuthDb__Port
-        fromDatabase:
-          name: auth-db
-          property: port
+        value: "5432"
       - key: AuthDb__Database
-        fromDatabase:
-          name: auth-db
-          property: database
+        sync: false
       - key: AuthDb__Username
-        fromDatabase:
-          name: auth-db
-          property: user
+        sync: false
       - key: AuthDb__Password
-        fromDatabase:
-          name: auth-db
-          property: password
+        sync: false
+      - key: AuthDb__SslMode
+        value: Require
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
@@ -179,7 +172,6 @@ services:
         sync: false
 
 databases:
-  - name: auth-db
   - name: citizen-db
   - name: request-db
   - name: document-db
