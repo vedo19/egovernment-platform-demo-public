@@ -15,7 +15,7 @@ var dbPort = builder.Configuration["RequestDb:Port"] ?? "5432";
 var dbName = builder.Configuration["RequestDb:Database"] ?? "request_db";
 var dbUser = builder.Configuration["RequestDb:Username"] ?? "postgres";
 var dbPassword = builder.Configuration["RequestDb:Password"];
-var dbSslMode = builder.Configuration["RequestDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
+var dbSslMode = builder.Configuration["RequestDb:SslMode"] ?? "Require"; // Defaults to Require for cloud (Neon/Render); docker-compose overrides to Disable for local
 
 var connectionString =
     !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)

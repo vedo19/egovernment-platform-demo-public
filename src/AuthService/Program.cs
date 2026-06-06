@@ -16,7 +16,7 @@ var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
 var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
 var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
 var dbPassword = builder.Configuration["AuthDb:Password"];
-var dbSslMode = builder.Configuration["AuthDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
+var dbSslMode = builder.Configuration["AuthDb:SslMode"] ?? "Require"; // Defaults to Require for cloud (Neon/Render); docker-compose overrides to Disable for local
 var dbChannelBinding = builder.Configuration["AuthDb:ChannelBinding"];
 
 var connectionString =

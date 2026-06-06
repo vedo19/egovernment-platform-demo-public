@@ -18,7 +18,7 @@ var dbPort = builder.Configuration["DocumentDb:Port"] ?? "5432";
 var dbName = builder.Configuration["DocumentDb:Database"] ?? "document_db";
 var dbUser = builder.Configuration["DocumentDb:Username"] ?? "postgres";
 var dbPassword = builder.Configuration["DocumentDb:Password"];
-var dbSslMode = builder.Configuration["DocumentDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
+var dbSslMode = builder.Configuration["DocumentDb:SslMode"] ?? "Require"; // Defaults to Require for cloud (Neon/Render); docker-compose overrides to Disable for local
 
 var connectionString =
     !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
