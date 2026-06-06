@@ -81,7 +81,7 @@ services:
     name: service-request-service
     env: docker
     dockerfilePath: src/ServiceRequestService/Dockerfile
-    dockerContext: src/ServiceRequestService
+    dockerContext: .
     healthCheckPath: /healthz
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -117,7 +117,7 @@ services:
     name: document-service
     env: docker
     dockerfilePath: src/DocumentService/Dockerfile
-    dockerContext: src/DocumentService
+    dockerContext: .
     healthCheckPath: /healthz
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -153,7 +153,7 @@ services:
     name: api-gateway
     env: docker
     dockerfilePath: src/ApiGateway/Dockerfile
-    dockerContext: src/ApiGateway
+    dockerContext: .
     healthCheckPath: /health
     envVars:
       - key: ASPNETCORE_ENVIRONMENT

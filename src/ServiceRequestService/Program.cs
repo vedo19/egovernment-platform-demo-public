@@ -10,7 +10,7 @@ using ServiceRequestService.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var dbHost = builder.Configuration["RequestDb:Host"];
+var dbHost = NormalizeDbHost(builder.Configuration["RequestDb:Host"]);
 var dbPort = builder.Configuration["RequestDb:Port"] ?? "5432";
 var dbName = builder.Configuration["RequestDb:Database"] ?? "request_db";
 var dbUser = builder.Configuration["RequestDb:Username"] ?? "postgres";
@@ -109,3 +109,27 @@ app.MapMetrics();
 app.MapHealthChecks("/healthz");
 
 app.Run();
+
+static string? NormalizeDbHost(string? host)
+{
+    if (string.IsNullOrWhiteSpace(host))
+        return host;
+
+    var cleaned = host.Trim();
+
+    if (Uri.TryCreate(cleaned, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        return uri.Host;
+
+    if (cleaned.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+        cleaned = cleaned["tcp://".Length..];
+
+    var slashIndex = cleaned.IndexOf('/');
+    if (slashIndex >= 0)
+        cleaned = cleaned[..slashIndex];
+
+    var colonIndex = cleaned.IndexOf(':');
+    if (colonIndex >= 0)
+        cleaned = cleaned[..colonIndex];
+
+    return cleaned;
+}

@@ -11,7 +11,7 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // ---------- Database ----------
-var dbHost = builder.Configuration["AuthDb:Host"];
+var dbHost = NormalizeDbHost(builder.Configuration["AuthDb:Host"]);
 var dbPort = builder.Configuration["AuthDb:Port"] ?? "5432";
 var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
 var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
@@ -126,3 +126,27 @@ app.MapMetrics();
 app.MapHealthChecks("/healthz");
 
 app.Run();
+
+static string? NormalizeDbHost(string? host)
+{
+    if (string.IsNullOrWhiteSpace(host))
+        return host;
+
+    var cleaned = host.Trim();
+
+    if (Uri.TryCreate(cleaned, UriKind.Absolute, out var uri) && !string.IsNullOrWhiteSpace(uri.Host))
+        return uri.Host;
+
+    if (cleaned.StartsWith("tcp://", StringComparison.OrdinalIgnoreCase))
+        cleaned = cleaned["tcp://".Length..];
+
+    var slashIndex = cleaned.IndexOf('/');
+    if (slashIndex >= 0)
+        cleaned = cleaned[..slashIndex];
+
+    var colonIndex = cleaned.IndexOf(':');
+    if (colonIndex >= 0)
+        cleaned = cleaned[..colonIndex];
+
+    return cleaned;
+}
