@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
 import AppSelect from '../../components/AppSelect';
@@ -644,10 +644,8 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
 
       <div className="profile-info-grid">
         {sections.map((section) => (
-          <>
-            <p key={`section-${section}`} style={sectionLabelStyle}>
-              {section}
-            </p>
+          <React.Fragment key={section}>
+            <p style={sectionLabelStyle}>{section}</p>
             {fields
               .filter((f) => f.section === section)
               .map(({ label, value }) => (
@@ -656,7 +654,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
                   <span className="info-value">{value || '—'}</span>
                 </div>
               ))}
-          </>
+          </React.Fragment>
         ))}
       </div>
     </div>
