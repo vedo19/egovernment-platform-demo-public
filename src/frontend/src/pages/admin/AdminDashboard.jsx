@@ -19,6 +19,13 @@ import { useAuth } from '../../context/AuthContext';
 
 const PAGE_SIZE = 8;
 
+const toList = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.$values)) return value.$values;
+  if (Array.isArray(value?.items)) return value.items;
+  return [];
+};
+
 // ── Shared UI Components for Details Dialogs ──
 
 const DetailsSection = ({ title, icon }) => (
@@ -73,9 +80,9 @@ export default function AdminDashboard() {
         authApi.users(),
       ]);
 
-      setRequestCount((requestsRes.data || []).length);
-      setDocumentCount((documentsRes.data || []).length);
-      setUserCount((usersRes.data || []).length);
+      setRequestCount(toList(requestsRes.data).length);
+      setDocumentCount(toList(documentsRes.data).length);
+      setUserCount(toList(usersRes.data).length);
     } catch {
       setRequestCount(0);
       setDocumentCount(0);
@@ -256,7 +263,7 @@ function RequestsTab({ onRefreshSummary, search, statusFilter }) {
     setLoading(true);
     try {
       const { data } = await serviceRequestApi.getAllRequests(statusFilter || undefined);
-      setRequests(data);
+      setRequests(toList(data));
       setPending({});
     } catch {
       /* empty */
@@ -272,7 +279,7 @@ function RequestsTab({ onRefreshSummary, search, statusFilter }) {
   const loadOfficers = async () => {
     try {
       const { data } = await authApi.users();
-      setOfficers((data || []).filter((u) => u.role === USER_ROLES.OFFICER));
+      setOfficers(toList(data).filter((u) => u.role === USER_ROLES.OFFICER));
     } catch {
       /* empty */
     }
@@ -757,7 +764,7 @@ function DocumentsTab({ onRefreshSummary, search, statusFilter }) {
     try {
       const params = statusFilter ? { status: statusFilter } : {};
       const { data } = await documentApi.getAll(params);
-      setDocuments(data || []);
+      setDocuments(toList(data));
       setPending({});
     } catch {
       /* empty */
@@ -773,7 +780,7 @@ function DocumentsTab({ onRefreshSummary, search, statusFilter }) {
   const loadOfficers = async () => {
     try {
       const { data } = await authApi.users();
-      setOfficers((data || []).filter((u) => u.role === USER_ROLES.OFFICER));
+      setOfficers(toList(data).filter((u) => u.role === USER_ROLES.OFFICER));
     } catch {
       /* empty */
     }
@@ -1206,7 +1213,7 @@ function UsersTab({ onRefreshSummary, search, user }) {
     setLoading(true);
     try {
       const { data } = await authApi.users();
-      setUsers(data || []);
+      setUsers(toList(data));
     } catch {
       /* empty */
     } finally {

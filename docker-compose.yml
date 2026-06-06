@@ -34,6 +34,7 @@ services:
       AuthDb__Username: "${AuthDb__Username:-postgres}"
       AuthDb__Password: "${AuthDb__Password:-CHANGE_ME_POSTGRES_PASSWORD}"
       AuthDb__SslMode: "${AuthDb__SslMode:-Disable}"
+      AuthDb__ChannelBinding: "${AuthDb__ChannelBinding:-}"
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"

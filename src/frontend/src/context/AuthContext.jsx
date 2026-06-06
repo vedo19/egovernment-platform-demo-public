@@ -1,5 +1,7 @@
+// AuthContext.jsx
+
 import { createContext, useContext, useState } from 'react';
-import { authApi } from '../api/services';
+import { authApi, citizenApi } from '../api/services';
 
 const AuthContext = createContext(null);
 
@@ -8,33 +10,99 @@ export function AuthProvider({ children }) {
     const saved = localStorage.getItem('user');
     return saved ? JSON.parse(saved) : null;
   });
+
   const [loading] = useState(false);
 
   const login = async (email, password) => {
     const { data } = await authApi.login({ email, password });
+
     localStorage.setItem('token', data.token);
+
     const userData = {
       userId: data.userId,
       fullName: data.fullName,
       email: data.email,
       role: data.role,
     };
+
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+
     return userData;
   };
 
-  const register = async (fullName, email, password) => {
-    const { data } = await authApi.register({ fullName, email, password });
+  const register = async ({
+    fullName,
+    email,
+    password,
+    jmb,
+    name,
+    surname,
+    gender,
+    dateOfBirth,
+    placeOfBirth,
+    placeOfResidence,
+    zipCode,
+    citizenship,
+  }) => {
+    const { data } = await authApi.register({
+      fullName,
+      email,
+      password,
+      jmb,
+      name,
+      surname,
+      gender,
+      dateOfBirth,
+      placeOfBirth,
+      placeOfResidence,
+      zipCode,
+      citizenship,
+    });
+
     localStorage.setItem('token', data.token);
+
+    try {
+      await citizenApi.createProfile({
+        firstName: name,
+        lastName: surname,
+        phoneNumber: '',
+        nationalId: jmb,
+        dateOfBirth,
+        address: placeOfResidence,
+        city: placeOfResidence,
+        gender,
+        placeOfBirth,
+        placeOfResidence,
+        zipCode,
+        citizenship,
+      });
+    } catch (err) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      setUser(null);
+      throw err;
+    }
+
     const userData = {
       userId: data.userId,
-      fullName: data.fullName,
-      email: data.email,
+      fullName,
+      email,
       role: data.role,
+      jmb,
+      name,
+      surname,
+      gender,
+      dateOfBirth,
+      placeOfBirth,
+      placeOfResidence,
+      zipCode,
+      citizenship,
     };
+
     localStorage.setItem('user', JSON.stringify(userData));
     setUser(userData);
+
     return userData;
   };
 
