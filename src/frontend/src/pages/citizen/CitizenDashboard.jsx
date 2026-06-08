@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { citizenApi, serviceRequestApi, documentApi } from '../../api/services';
 import ProgressBar from '../../components/ProgressBar';
 import AppSelect from '../../components/AppSelect';
@@ -49,12 +49,21 @@ export default function CitizenDashboard() {
       const [requestsRes, documentsRes, profileRes] = await Promise.all([
         serviceRequestApi.getMyRequests(),
         documentApi.getMyDocuments(),
-        citizenApi.getProfile().catch(() => ({ data: null })),
+        citizenApi.getProfile().catch((err) => {
+          if (err.response?.status === 404) {
+            return { data: null };
+          }
+
+          throw err;
+        }),
       ]);
 
       const requests = requestsRes.data || [];
       const documents = documentsRes.data || [];
       setProfile(profileRes.data);
+      if (!profileRes.data && searchParams.get('tab') === 'profile') {
+        setTabMode('editing');
+      }
       setProfileLoading(false);
 
       setRequestCount(requests.length);
@@ -97,16 +106,10 @@ export default function CitizenDashboard() {
       return (
         <div className="section-header">
           <div>
-            <h2>
-              {tabMode === 'editing'
-                ? profile
-                  ? 'Edit Profile'
-                  : 'Create Profile'
-                : 'Your Profile'}
-            </h2>
+            <h2>{tabMode === 'editing' ? 'Edit Profile' : 'View Profile'}</h2>
             <p className="subtitle">Manage your personal information and contact details.</p>
           </div>
-          {tabMode !== 'editing' && profile && (
+          {tabMode !== 'editing' && (
             <div className="header-actions">
               <button className="btn btn-primary" onClick={() => setTabMode('editing')}>
                 Edit Profile
@@ -243,14 +246,23 @@ export default function CitizenDashboard() {
 }
 
 function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
+  const savedUser = useMemo(() => JSON.parse(localStorage.getItem('user') || '{}'), []);
+
   const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
     phoneNumber: '',
     address: '',
     dateOfBirth: '',
     nationalId: '',
     city: '',
     gender: '',
+    placeOfBirth: '',
+    placeOfResidence: '',
+    zipCode: '',
+    citizenship: '',
   });
+
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
 
@@ -259,18 +271,40 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
   useEffect(() => {
     if (profile) {
       setForm({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
         phoneNumber: profile.phoneNumber || '',
         address: profile.address || '',
         dateOfBirth: profile.dateOfBirth || '',
         nationalId: profile.nationalId || '',
         city: profile.city || '',
         gender: profile.gender || '',
+        placeOfBirth: profile.placeOfBirth || '',
+        placeOfResidence: profile.placeOfResidence || '',
+        zipCode: profile.zipCode || '',
+        citizenship: profile.citizenship || '',
+      });
+    } else {
+      setForm({
+        firstName: savedUser.name || '',
+        lastName: savedUser.surname || '',
+        phoneNumber: '',
+        address: savedUser.placeOfResidence || '',
+        dateOfBirth: savedUser.dateOfBirth || '',
+        nationalId: savedUser.jmb || '',
+        city: savedUser.placeOfResidence || '',
+        gender: savedUser.gender || '',
+        placeOfBirth: savedUser.placeOfBirth || '',
+        placeOfResidence: savedUser.placeOfResidence || '',
+        zipCode: savedUser.zipCode || '',
+        citizenship: savedUser.citizenship || '',
       });
     }
-  }, [profile]);
+  }, [profile, savedUser]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setError('');
     setMsg('');
 
@@ -287,6 +321,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
       await onRefresh();
     } catch (err) {
       const d = err.response?.data;
+
       setError(
         typeof d === 'string'
           ? d
@@ -302,19 +337,49 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
           <div>
             <div
               className="skeleton"
-              style={{ width: '120px', height: '1.2rem', marginBottom: '0.5rem' }}
+              style={{
+                width: '120px',
+                height: '1.2rem',
+                marginBottom: '0.5rem',
+              }}
             ></div>
-            <div className="skeleton" style={{ width: '250px', height: '0.8rem' }}></div>
+
+            <div
+              className="skeleton"
+              style={{
+                width: '250px',
+                height: '0.8rem',
+              }}
+            ></div>
           </div>
         </div>
+
         <div className="detail-grid">
           {[...Array(6)].map((_, i) => (
-            <div key={i} style={{ height: '3.5rem', display: 'flex', alignItems: 'center' }}>
+            <div
+              key={i}
+              style={{
+                height: '3.5rem',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
               <div
                 className="skeleton"
-                style={{ width: '30%', height: '0.8rem', marginRight: '1rem' }}
+                style={{
+                  width: '30%',
+                  height: '0.8rem',
+                  marginRight: '1rem',
+                }}
               ></div>
-              <div className="skeleton" style={{ width: '50%', height: '0.8rem' }}></div>
+
+              <div
+                className="skeleton"
+                style={{
+                  width: '50%',
+                  height: '0.8rem',
+                }}
+              ></div>
             </div>
           ))}
         </div>
@@ -322,17 +387,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
     );
   }
 
-  if (!profile && !editing) {
-    return (
-      <div className="card empty-state-card">
-        <h2>Profile Information</h2>
-        <p className="subtitle">Complete your personal information to use services more easily.</p>
-        <button className="btn btn-primary" onClick={() => setMode('editing')}>
-          Create Profile
-        </button>
-      </div>
-    );
-  }
+  // Always fall through to the view — registration data is always available
 
   if (editing) {
     return (
@@ -343,56 +398,182 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
         <form onSubmit={handleSubmit}>
           <div className="detail-grid">
             <div className="form-group">
+              <label>First Name</label>
+
+              <input
+                value={form.firstName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    firstName: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Surname</label>
+
+              <input
+                value={form.lastName}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    lastName: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
               <label>Phone Number</label>
+
               <input
                 value={form.phoneNumber}
-                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    phoneNumber: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>City</label>
+
               <input
                 value={form.city}
-                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    city: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Address</label>
+
               <input
                 value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    address: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Date of Birth</label>
+
               <input
                 type="date"
                 value={form.dateOfBirth}
-                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    dateOfBirth: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>National ID</label>
+
               <input
                 value={form.nationalId}
-                onChange={(e) => setForm({ ...form, nationalId: e.target.value })}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    nationalId: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Place of Birth</label>
+
+              <input
+                value={form.placeOfBirth}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    placeOfBirth: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Place of Residence</label>
+
+              <input
+                value={form.placeOfResidence}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    placeOfResidence: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>ZIP / Postal Code</label>
+
+              <input
+                value={form.zipCode}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    zipCode: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Citizenship</label>
+
+              <input
+                value={form.citizenship}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    citizenship: e.target.value,
+                  })
+                }
                 required
               />
             </div>
 
             <div className="form-group">
               <label>Gender</label>
+
               <AppSelect
                 value={form.gender}
-                onChange={(val) => setForm({ ...form, gender: val })}
+                onChange={(val) =>
+                  setForm({
+                    ...form,
+                    gender: val,
+                  })
+                }
                 required
                 placeholder="Select..."
                 options={['Male', 'Female', 'Other']}
@@ -404,6 +585,7 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
             <button type="submit" className="btn btn-primary">
               Save Profile
             </button>
+
             <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>
               Cancel
             </button>
@@ -413,35 +595,67 @@ function ProfileTab({ profile, loading, mode, setMode, onRefresh }) {
     );
   }
 
+  const fields = [
+    // ── Account ──
+    { section: 'Account', label: 'Full Name', value: profile?.fullName || savedUser.fullName },
+    { section: 'Account', label: 'Email', value: profile?.email || savedUser.email },
+    // ── Personal Information ──
+    { section: 'Personal Information', label: 'First Name', value: form.firstName },
+    { section: 'Personal Information', label: 'Surname', value: form.lastName },
+    { section: 'Personal Information', label: 'JMB (National ID)', value: form.nationalId },
+    { section: 'Personal Information', label: 'Gender', value: form.gender },
+    {
+      section: 'Personal Information',
+      label: 'Date of Birth',
+      value: form.dateOfBirth,
+    },
+    { section: 'Personal Information', label: 'Place of Birth', value: form.placeOfBirth },
+    // ── Address & Citizenship ──
+    {
+      section: 'Address & Citizenship',
+      label: 'Place of Residence',
+      value: form.placeOfResidence,
+    },
+    { section: 'Address & Citizenship', label: 'ZIP / Postal Code', value: form.zipCode },
+    { section: 'Address & Citizenship', label: 'Citizenship', value: form.citizenship },
+    // ── Contact (editable via Edit Profile) ──
+    { section: 'Contact', label: 'Phone Number', value: form.phoneNumber },
+    { section: 'Contact', label: 'Address', value: form.address },
+    { section: 'Contact', label: 'City', value: form.city },
+  ];
+
+  const sections = [...new Set(fields.map((f) => f.section))];
+
+  const sectionLabelStyle = {
+    fontWeight: 600,
+    margin: '1.25rem 0 0.6rem',
+    color: 'var(--text-secondary, #6b7280)',
+    fontSize: '0.75rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    borderBottom: '1px solid var(--border, #e5e7eb)',
+    paddingBottom: '0.35rem',
+    gridColumn: '1 / -1',
+  };
+
   return (
-    <div className="card">
+    <div className="card profile-card">
       {msg && <div className="alert alert-success">{msg}</div>}
 
       <div className="profile-info-grid">
-        <div className="info-item">
-          <span className="info-label">Phone Number</span>
-          <span className="info-value">{profile.phoneNumber || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">City</span>
-          <span className="info-value">{profile.city || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Address</span>
-          <span className="info-value">{profile.address || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Date of Birth</span>
-          <span className="info-value">{profile.dateOfBirth || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">National ID</span>
-          <span className="info-value">{profile.nationalId || '—'}</span>
-        </div>
-        <div className="info-item">
-          <span className="info-label">Gender</span>
-          <span className="info-value">{profile.gender || '—'}</span>
-        </div>
+        {sections.map((section) => (
+          <React.Fragment key={section}>
+            <p style={sectionLabelStyle}>{section}</p>
+            {fields
+              .filter((f) => f.section === section)
+              .map(({ label, value }) => (
+                <div key={label} className="info-item">
+                  <span className="info-label">{label}</span>
+                  <span className="info-value">{value || '—'}</span>
+                </div>
+              ))}
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );

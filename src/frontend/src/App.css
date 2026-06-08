@@ -148,11 +148,16 @@
   flex-direction: column;
   min-height: 0;
   overflow-y: auto; /* Allow scrolling for forms/profile */
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 .dashboard-section::-webkit-scrollbar {
-  display: none;
+  width: 8px;
+}
+
+.dashboard-section::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
 }
 
 /* Allow dropdowns to pop out through all parent containers */
@@ -935,6 +940,7 @@
   font-weight: 600; /* Increased from 500 */
   color: #1e293b;
   word-break: break-word;
+  overflow-wrap: anywhere;
   min-height: 1.25rem;
   display: flex;
   align-items: center;
@@ -1204,6 +1210,22 @@
   overflow: hidden;
 }
 
+.profile-card {
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100%;
+  scrollbar-width: thin;
+}
+
+.profile-card::-webkit-scrollbar {
+  width: 8px;
+}
+
+.profile-card::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
 .info-item {
   display: flex;
   flex-direction: column;
@@ -1214,6 +1236,7 @@
   border: none;
   border-right: 1px solid #cbd5e1;
   border-bottom: 1px solid #cbd5e1;
+  min-width: 0;
 }
 
 .info-item:nth-child(2n) {
