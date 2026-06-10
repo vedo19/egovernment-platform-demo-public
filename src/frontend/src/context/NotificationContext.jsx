@@ -37,20 +37,17 @@ export function NotificationProvider({ children }) {
     }
   }, [user]);
 
-  const markRead = useCallback(
-    async (id) => {
-      try {
-        await notificationApi.markRead(id);
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === id && !n.isRead ? { ...n, isRead: true } : n))
-        );
-        setUnreadCount((c) => Math.max(0, c - 1));
-      } catch {
-        /* ignore */
-      }
-    },
-    []
-  );
+  const markRead = useCallback(async (id) => {
+    try {
+      await notificationApi.markRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === id && !n.isRead ? { ...n, isRead: true } : n))
+      );
+      setUnreadCount((c) => Math.max(0, c - 1));
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const markAllRead = useCallback(async () => {
     try {
@@ -95,11 +92,9 @@ export function NotificationProvider({ children }) {
       }
     });
 
-    connection
-      .start()
-      .catch(() => {
-        // Connection failed — REST polling on refresh() still works.
-      });
+    connection.start().catch(() => {
+      // Connection failed — REST polling on refresh() still works.
+    });
 
     connectionRef.current = connection;
 
@@ -123,7 +118,13 @@ export function NotificationProvider({ children }) {
 export const useNotifications = () => {
   const ctx = useContext(NotificationContext);
   if (!ctx) {
-    return { notifications: [], unreadCount: 0, markRead: () => {}, markAllRead: () => {}, refresh: () => {} };
+    return {
+      notifications: [],
+      unreadCount: 0,
+      markRead: () => {},
+      markAllRead: () => {},
+      refresh: () => {},
+    };
   }
   return ctx;
 };
