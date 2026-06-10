@@ -17,10 +17,12 @@ var dbName = builder.Configuration["AuthDb:Database"] ?? "auth_db";
 var dbUser = builder.Configuration["AuthDb:Username"] ?? "postgres";
 var dbPassword = builder.Configuration["AuthDb:Password"];
 var dbSslMode = builder.Configuration["AuthDb:SslMode"] ?? "Disable"; // For local Docker: Disable, for cloud: Require
+var dbChannelBinding = builder.Configuration["AuthDb:ChannelBinding"];
 
 var connectionString =
     !string.IsNullOrWhiteSpace(dbHost) && !string.IsNullOrWhiteSpace(dbPassword)
-        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode={dbSslMode}"
+        ? $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPassword};SSL Mode={dbSslMode}" +
+          (string.IsNullOrWhiteSpace(dbChannelBinding) ? string.Empty : $";Channel Binding={dbChannelBinding}")
         : builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Database connection settings are not configured.");
 

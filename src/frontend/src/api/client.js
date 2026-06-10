@@ -1,12 +1,11 @@
 import axios from 'axios';
 
-const RENDER_GATEWAY_FALLBACK = 'https://api-gateway-xi3u.onrender.com';
-
-const isLocalHost =
-  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-
-const API_BASE =
-  import.meta.env.VITE_API_URL || (isLocalHost ? 'http://localhost:5050' : RENDER_GATEWAY_FALLBACK);
+const configuredApiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
+const API_BASE = configuredApiUrl
+  ? configuredApiUrl.endsWith('/api')
+    ? configuredApiUrl
+    : `${configuredApiUrl}/api`
+  : '/api';
 
 const client = axios.create({
   baseURL: API_BASE,
@@ -26,7 +25,7 @@ client.interceptors.response.use(
   (err) => {
     const requestUrl = err.config?.url || '';
     const isAuthRequest =
-      requestUrl.includes('/api/auth/login') || requestUrl.includes('/api/auth/register');
+      requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
 
     if (err.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('token');
