@@ -1,4 +1,5 @@
 using AuthService.DTOs;
+using AuthService.Middleware;
 using AuthService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -67,6 +68,29 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> GetAllUsers()
     {
         var users = await _authService.GetAllUsersAsync();
+        return Ok(users);
+    }
+
+    /// <summary>Internal service-to-service user lookup by ID.</summary>
+    [ServiceFilter(typeof(InternalApiKeyFilter))]
+    [HttpGet("internal/users/{id:guid}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetInternalUserById(Guid id)
+    {
+        var user = await _authService.GetUserByIdAsync(id);
+        if (user is null)
+            return NotFound(new { error = "User not found." });
+
+        return Ok(user);
+    }
+
+    /// <summary>Internal service-to-service user lookup by role.</summary>
+    [ServiceFilter(typeof(InternalApiKeyFilter))]
+    [HttpGet("internal/users-by-role/{role}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetInternalUsersByRole(string role)
+    {
+        var users = await _authService.GetUsersByRoleAsync(role);
         return Ok(users);
     }
 

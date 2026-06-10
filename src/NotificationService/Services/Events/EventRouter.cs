@@ -26,7 +26,7 @@ public class EventRouter
                     type: "DocumentSubmitted",
                     title: "New document request awaiting assignment",
                     message: $"Citizen submitted a new \"{P(envelope, "title")}\" document request. Please assign an officer.",
-                    link: "/admin",
+                    link: "/admin?tab=documents",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -37,7 +37,7 @@ public class EventRouter
                     type: "DocumentAssigned",
                     title: "A document was assigned to you",
                     message: $"You have been assigned the document request \"{P(envelope, "title")}\". Please begin review.",
-                    link: "/officer",
+                    link: "/officer?tab=documents",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -48,7 +48,7 @@ public class EventRouter
                     type: "DocumentReady",
                     title: "Your document is ready",
                     message: $"Your document \"{P(envelope, "title")}\" has been approved and is ready for download.",
-                    link: "/citizen",
+                    link: "/citizen?tab=documents",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -59,7 +59,7 @@ public class EventRouter
                     type: "DocumentRejected",
                     title: "Your document was rejected",
                     message: $"Your document \"{P(envelope, "title")}\" was rejected. Reason: {P(envelope, "reason")}",
-                    link: "/citizen",
+                    link: "/citizen?tab=documents",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -69,7 +69,7 @@ public class EventRouter
                     type: "ServiceRequestSubmitted",
                     title: "New service request awaiting assignment",
                     message: $"New {P(envelope, "type")} \"{P(envelope, "title")}\" was submitted. Please assign an officer.",
-                    link: "/admin",
+                    link: "/admin?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -80,7 +80,7 @@ public class EventRouter
                     type: "ServiceRequestAssigned",
                     title: "A service request was assigned to you",
                     message: $"You have been assigned the service request \"{P(envelope, "title")}\". Please begin review.",
-                    link: "/officer",
+                    link: "/officer?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -91,7 +91,7 @@ public class EventRouter
                     type: "ServiceRequestDocumentsRequested",
                     title: "Action required: upload supporting documents",
                     message: $"The reviewing officer requested documents for \"{P(envelope, "title")}\". Note: {P(envelope, "officerNote")}",
-                    link: "/citizen",
+                    link: "/citizen?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -102,7 +102,7 @@ public class EventRouter
                     type: "ServiceRequestDocumentsRejected",
                     title: "Submitted documents were rejected",
                     message: $"Your uploaded documents for \"{P(envelope, "title")}\" were rejected. Please resubmit. Reason: {P(envelope, "reason")}",
-                    link: "/citizen",
+                    link: "/citizen?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -113,7 +113,7 @@ public class EventRouter
                     type: "ServiceRequestApproved",
                     title: "Your request was approved",
                     message: $"Your request \"{P(envelope, "title")}\" has been approved.",
-                    link: "/citizen",
+                    link: "/citizen?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;
@@ -124,7 +124,7 @@ public class EventRouter
                     type: "ServiceRequestRejected",
                     title: "Your request was rejected",
                     message: $"Your request \"{P(envelope, "title")}\" was rejected. Reason: {P(envelope, "reason")}",
-                    link: "/citizen",
+                    link: "/citizen?tab=requests",
                     payload: envelope.Payload,
                     cancellationToken: cancellationToken);
                 break;

@@ -1,8 +1,8 @@
 import client from './client';
 
 export const notificationApi = {
-  list: (params) => client.get('/api/notifications', { params }),
-  unreadCount: () => client.get('/api/notifications/unread-count'),
-  markRead: (id) => client.put(`/api/notifications/${id}/read`),
-  markAllRead: () => client.put('/api/notifications/read-all'),
+  list: (params) => client.get('/notifications', { params }),
+  unreadCount: () => client.get('/notifications/unread-count'),
+  markRead: (id) => client.put(`/notifications/${id}/read`),
+  markAllRead: () => client.put('/notifications/read-all'),
 };

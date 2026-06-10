@@ -2,6 +2,7 @@ using System.Text.Json;
 using DocumentService.Data;
 using DocumentService.DTOs;
 using DocumentService.Models;
+using DocumentService.Services.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace DocumentService.Services;
@@ -12,6 +13,7 @@ public class DocumentServiceImpl : IDocumentService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IPdfGeneratorService _pdfGenerator;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IEventBus _eventBus;
 
     private static readonly HashSet<string> ValidDocumentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -28,12 +30,14 @@ public class DocumentServiceImpl : IDocumentService
         DocumentDbContext db,
         IHttpClientFactory httpClientFactory,
         IPdfGeneratorService pdfGenerator,
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IEventBus eventBus)
     {
         _db = db;
         _httpClientFactory = httpClientFactory;
         _pdfGenerator = pdfGenerator;
         _httpContextAccessor = httpContextAccessor;
+        _eventBus = eventBus;
     }
 
     public async Task<DocumentDto> CreateAsync(Guid citizenUserId, CreateDocumentRequestDto dto)
@@ -52,6 +56,7 @@ public class DocumentServiceImpl : IDocumentService
 
         _db.Documents.Add(document);
         await _db.SaveChangesAsync();
+        Publish("document.submitted", document);
 
         return ToDto(document);
     }
@@ -120,6 +125,7 @@ public class DocumentServiceImpl : IDocumentService
         document.UpdatedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+        Publish("document.assigned", document);
         return ToDto(document);
     }
 
@@ -242,7 +248,6 @@ public class DocumentServiceImpl : IDocumentService
         {
             document.CompletedAt = DateTime.UtcNow;
             document.ReferenceNumber ??= GenerateReferenceNumber(document.DocumentType);
-        }
 
             var citizen = await FetchCitizenDataAsync(document.CitizenUserId);
             var expiresAt = GetExpiryDate(document.DocumentType);
@@ -251,8 +256,16 @@ public class DocumentServiceImpl : IDocumentService
                 document.DocumentType, citizen, document.ReferenceNumber!, expiresAt);
             document.GeneratedAt = DateTime.UtcNow;
             document.ExpiresAt = expiresAt;
+        }
 
         await _db.SaveChangesAsync();
+        if (target == "Approved")
+            Publish("document.approved", document);
+        else if (target == "Rejected")
+            Publish("document.rejected", document);
+        else if (target == "UnderReview" && document.AssignedOfficerId == actorId)
+            Publish("document.assigned", document);
+
         return ToDto(document);
     }
 
@@ -356,6 +369,20 @@ public class DocumentServiceImpl : IDocumentService
             _ => "DOC"
         };
         return $"{prefix}-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8].ToUpperInvariant()}";
+    }
+
+    private void Publish(string routingKey, Document document)
+    {
+        _eventBus.Publish(routingKey, new
+        {
+            documentId = document.Id,
+            citizenUserId = document.CitizenUserId,
+            assignedOfficerId = document.AssignedOfficerId,
+            title = string.IsNullOrWhiteSpace(document.Title) ? document.DocumentType : document.Title,
+            documentType = document.DocumentType,
+            status = document.Status,
+            reason = document.RejectionReason
+        });
     }
 
     private static DocumentDto ToDto(Document d) => new()

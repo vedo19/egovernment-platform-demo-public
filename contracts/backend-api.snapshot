@@ -5,6 +5,8 @@ Generated from controller and gateway route declarations.
 ## AuthService/Auth
 
 - GET /api/Auth/health
+- GET /api/Auth/internal/users-by-role/{role}
+- GET /api/Auth/internal/users/{id:guid}
 - GET /api/Auth/me
 - GET /api/Auth/users
 - GET /api/Auth/users/{id:guid}
@@ -41,6 +43,14 @@ Generated from controller and gateway route declarations.
 - PUT /api/Documents/{id:guid}/start-review
 - PUT /api/Documents/{id:guid}/status
 
+## NotificationService/Notifications
+
+- GET /api/Notifications
+- GET /api/Notifications/health
+- GET /api/Notifications/unread-count
+- PUT /api/Notifications/read-all
+- PUT /api/Notifications/{id:guid}/read
+
 ## ServiceRequestService/ServiceRequests
 
 - GET /api/ServiceRequests
@@ -67,7 +77,10 @@ Generated from controller and gateway route declarations.
 - PATH /api/citizens/{everything}
 - PATH /api/documents
 - PATH /api/documents/{everything}
+- PATH /api/notifications
+- PATH /api/notifications/{everything}
 - PATH /api/servicerequests
 - PATH /api/servicerequests/{everything}
+- PATH /hubs/notifications
+- PATH /hubs/notifications/{everything}
 - GET /health
-

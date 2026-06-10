@@ -15,6 +15,25 @@ function formatRelative(iso) {
   return `${days}d ago`;
 }
 
+function BellIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M10.3 21a2 2 0 0 0 3.4 0" />
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+    </svg>
+  );
+}
+
 export default function NotificationBell() {
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
   const [open, setOpen] = useState(false);
@@ -32,13 +51,13 @@ export default function NotificationBell() {
     return () => document.removeEventListener('mousedown', onClick);
   }, [open]);
 
-  const handleClick = async (n) => {
-    if (!n.isRead) {
-      await markRead(n.id);
+  const handleClick = async (notification) => {
+    if (!notification.isRead) {
+      await markRead(notification.id);
     }
     setOpen(false);
-    if (n.link) {
-      navigate(n.link);
+    if (notification.link) {
+      navigate(notification.link);
     }
   };
 
@@ -47,10 +66,10 @@ export default function NotificationBell() {
       <button
         type="button"
         className="notification-bell-button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => setOpen((current) => !current)}
         aria-label={`Notifications (${unreadCount} unread)`}
       >
-        <span aria-hidden="true">🔔</span>
+        <BellIcon />
         {unreadCount > 0 && (
           <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
         )}
@@ -71,23 +90,25 @@ export default function NotificationBell() {
             <div className="notification-empty">You're all caught up.</div>
           ) : (
             <ul className="notification-list">
-              {notifications.slice(0, 10).map((n) => (
+              {notifications.slice(0, 10).map((notification) => (
                 <li
-                  key={n.id}
-                  className={`notification-item${n.isRead ? '' : ' unread'}`}
-                  onClick={() => handleClick(n)}
+                  key={notification.id}
+                  className={`notification-item${notification.isRead ? '' : ' unread'}`}
+                  onClick={() => handleClick(notification)}
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      handleClick(n);
+                      handleClick(notification);
                     }
                   }}
                 >
-                  <div className="notification-item-title">{n.title}</div>
-                  <div className="notification-item-message">{n.message}</div>
-                  <div className="notification-item-time">{formatRelative(n.createdAt)}</div>
+                  <div className="notification-item-title">{notification.title}</div>
+                  <div className="notification-item-message">{notification.message}</div>
+                  <div className="notification-item-time">
+                    {formatRelative(notification.createdAt)}
+                  </div>
                 </li>
               ))}
             </ul>
