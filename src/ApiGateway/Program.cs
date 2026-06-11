@@ -62,6 +62,7 @@ static Dictionary<string, string?> BuildOcelotOverrides(IConfiguration config)
     ApplyServiceRouteOverride(overrides, config, "CitizenService:Url", new[] { 1, 2 });
     ApplyServiceRouteOverride(overrides, config, "ServiceRequestService:Url", new[] { 3, 4 });
     ApplyServiceRouteOverride(overrides, config, "DocumentService:Url", new[] { 5, 6 });
+    ApplyServiceRouteOverride(overrides, config, "NotificationService:Url", new[] { 7, 8, 9, 10 });
 
     var publicBaseUrl = config["Gateway__BaseUrl"];
     if (!string.IsNullOrWhiteSpace(publicBaseUrl))

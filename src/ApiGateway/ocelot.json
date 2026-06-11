@@ -51,6 +51,35 @@
       "DownstreamPathTemplate": "/api/documents",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [{ "Host": "document_service", "Port": 80 }]
+    },
+
+    {
+      "UpstreamPathTemplate": "/api/notifications/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "DownstreamPathTemplate": "/api/notifications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "notification_service", "Port": 80 }]
+    },
+    {
+      "UpstreamPathTemplate": "/api/notifications",
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
+      "DownstreamPathTemplate": "/api/notifications",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "notification_service", "Port": 80 }]
+    },
+    {
+      "UpstreamPathTemplate": "/hubs/notifications/{everything}",
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
+      "DownstreamPathTemplate": "/hubs/notifications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "notification_service", "Port": 80 }]
+    },
+    {
+      "UpstreamPathTemplate": "/hubs/notifications",
+      "UpstreamHttpMethod": ["GET", "POST", "OPTIONS"],
+      "DownstreamPathTemplate": "/hubs/notifications",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [{ "Host": "notification_service", "Port": 80 }]
     }
   ],
 

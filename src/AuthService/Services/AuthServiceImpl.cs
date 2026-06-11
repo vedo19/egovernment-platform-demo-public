@@ -124,4 +124,22 @@ public class AuthServiceImpl : IAuthService
             })
             .ToListAsync();
     }
+
+    public async Task<IEnumerable<UserDto>> GetUsersByRoleAsync(string role)
+    {
+        if (!ValidRoles.Contains(role))
+            throw new ArgumentException($"Invalid role '{role}'. Valid roles: Citizen, Admin, Officer.");
+
+        return await _context.Users
+            .Where(u => u.Role.ToLower() == role.ToLower())
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                FullName = u.FullName,
+                Email = u.Email,
+                Role = u.Role,
+                CreatedAt = u.CreatedAt
+            })
+            .ToListAsync();
+    }
 }

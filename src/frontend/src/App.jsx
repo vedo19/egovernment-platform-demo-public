@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/Layout';
 import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/auth/LoginPage';
@@ -21,43 +22,45 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
+        <NotificationProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route
-              path="/citizen"
               element={
-                <ProtectedRoute roles={['Citizen']}>
-                  <CitizenDashboard />
+                <ProtectedRoute>
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute roles={['Admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/officer"
-              element={
-                <ProtectedRoute roles={['Officer']}>
-                  <OfficerDashboard />
-                </ProtectedRoute>
-              }
-            />
-          </Route>
-          <Route path="*" element={<HomeRedirect />} />
-        </Routes>
+            >
+              <Route
+                path="/citizen"
+                element={
+                  <ProtectedRoute roles={['Citizen']}>
+                    <CitizenDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute roles={['Admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/officer"
+                element={
+                  <ProtectedRoute roles={['Officer']}>
+                    <OfficerDashboard />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
+            <Route path="*" element={<HomeRedirect />} />
+          </Routes>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );
