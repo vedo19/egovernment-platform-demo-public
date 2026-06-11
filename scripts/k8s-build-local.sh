@@ -21,6 +21,9 @@ docker build -t document-service:dev -f src/DocumentService/Dockerfile .
 echo "Building ServiceRequestService..."
 docker build -t service-request-service:dev -f src/ServiceRequestService/Dockerfile .
 
+echo "Building NotificationService..."
+docker build -t notification-service:dev -f src/NotificationService/Dockerfile .
+
 echo "Building Frontend..."
 docker build -t frontend:dev src/frontend
 
