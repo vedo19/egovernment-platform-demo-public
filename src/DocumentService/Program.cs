@@ -77,7 +77,13 @@ builder.Services.AddAuthorization();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("CitizenService", client =>
 {
-    client.BaseAddress = new Uri("http://citizen_service:8080");
+    var citizenServiceBaseUrl = builder.Configuration["CitizenService:BaseUrl"]
+        ?? builder.Configuration["CitizenService__BaseUrl"]
+        ?? "http://citizen_service:8080/";
+
+    client.BaseAddress = new Uri(citizenServiceBaseUrl.EndsWith('/')
+        ? citizenServiceBaseUrl
+        : $"{citizenServiceBaseUrl}/");
 });
 builder.Services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 builder.Services.AddScoped<IDocumentService, DocumentServiceImpl>();
