@@ -241,6 +241,7 @@ services:
       Jwt__Key: "${JWT_SECRET_KEY:-CHANGE_ME_GENERATE_A_RANDOM_SECRET_MINIMUM_32_CHARS}"
       Jwt__Issuer: "AuthService"
       Jwt__Audience: "EGovernmentPlatform"
+      CitizenService__BaseUrl: "http://citizen_service:8080/"
     depends_on:
       document_db:
         condition: service_healthy

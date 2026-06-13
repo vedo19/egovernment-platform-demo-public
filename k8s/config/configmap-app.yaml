@@ -9,29 +9,36 @@ data:
   AuthDb__Port: '5432'
   AuthDb__Database: auth_db
   AuthDb__Username: postgres
+  AuthDb__SslMode: Disable
   CitizenDb__Host: citizen-postgres.egovernment-db.svc.cluster.local
   CitizenDb__Port: '5432'
   CitizenDb__Database: citizen_db
   CitizenDb__Username: postgres
+  CitizenDb__SslMode: Disable
   RequestDb__Host: request-postgres.egovernment-db.svc.cluster.local
   RequestDb__Port: '5432'
   RequestDb__Database: request_db
   RequestDb__Username: postgres
+  RequestDb__SslMode: Disable
   DocumentDb__Host: document-postgres.egovernment-db.svc.cluster.local
   DocumentDb__Port: '5432'
   DocumentDb__Database: document_db
   DocumentDb__Username: postgres
+  DocumentDb__SslMode: Disable
   NotificationDb__Host: notification-postgres.egovernment-db.svc.cluster.local
   NotificationDb__Port: '5432'
   NotificationDb__Database: notification_db
   NotificationDb__Username: postgres
+  NotificationDb__SslMode: Disable
   AuditDb__Host: audit-postgres.egovernment-db.svc.cluster.local
   AuditDb__Port: '5432'
   AuditDb__Database: audit_db
   AuditDb__Username: postgres
+  AuditDb__SslMode: Disable
   RabbitMQ__Host: rabbitmq.messaging.svc.cluster.local
   RabbitMQ__Port: '5672'
   AuthService__BaseUrl: http://auth-service.egovernment.svc.cluster.local:8080/
+  CitizenService__BaseUrl: http://citizen-service.egovernment.svc.cluster.local:8080/
   Smtp__Host: mailhog.egovernment.svc.cluster.local
   Smtp__Port: '1025'
   Smtp__From: noreply@egovernment.local
