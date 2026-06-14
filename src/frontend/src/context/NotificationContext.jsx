@@ -78,8 +78,8 @@ export function NotificationProvider({ children }) {
     const connection = new HubConnectionBuilder()
       .withUrl(`${API_BASE}/hubs/notifications`, {
         accessTokenFactory: () => localStorage.getItem('token') || '',
-        transport: HttpTransportType.WebSockets | HttpTransportType.LongPolling,
-        skipNegotiation: false,
+        transport: HttpTransportType.WebSockets,
+        skipNegotiation: true,
       })
       .withAutomaticReconnect()
       .configureLogging(LogLevel.Warning)

@@ -26,7 +26,8 @@ builder.Services.AddCors(options =>
         policy
             .WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -39,6 +40,7 @@ if (!string.IsNullOrWhiteSpace(renderPort))
 }
 
 app.UseCors("AllowFrontend");
+app.UseWebSockets();
 app.UseHttpMetrics();
 
 app.UseRouting();
